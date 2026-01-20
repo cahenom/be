@@ -19,8 +19,8 @@ class ProfileController extends Controller
         $user = Auth::user();
 
         if (!$user) {
-            return response()->json([
-                'status' => false,
+            return new ApiResponseResource([
+                'status' => 'false',
                 'message' => 'Unauthenticated.',
             ], 401);
         }
@@ -35,10 +35,10 @@ class ProfileController extends Controller
 
             $user->update($validated);
 
-            return response()->json([
-                'status'  => true,
-                'message' => 'Profile updated.',
-                'data'    => $user,
+            return new ApiResponseResource([
+                'status'  => 'success',
+                'message' => 'Profile berhasil didapatkan.',
+                'data'    =>  $user,
             ]);
         }
 
@@ -50,31 +50,26 @@ class ProfileController extends Controller
         ]);
     }
 
-    /**
-     * Ambil transaksi user (Dummy / Skeleton)
-     */
-    public function transactions(Request $request)
+   /**
+ * Ambil transaksi user (Dummy / Skeleton)
+ */
+public function transactions(Request $request)
 {
     $user = $request->user(); // Sanctum auto detect
 
     if (!$user) {
-        return response()->json([
+        return new ApiResponseResource([
             'status' => false,
             'message' => 'Unauthenticated.',
         ], 401);
     }
-
     // Ambil semua transaksi user
-    $transactions = TransactionModel::where('transaction_user_id', $user->id)
-        ->orderBy('id', 'DESC')
-        ->get();
+    $transactions = TransactionModel::where('transaction_user_id', $user->id)->get();
 
-    return response()->json([
+    return new ApiResponseResource([
         'status'  => true,
-        'message' => 'User transactions fetched.',
+        'message' => 'User transactions berhasil didapatkan.',
         'data'    => $transactions,
     ]);
 }
-
-
 }

@@ -47,7 +47,7 @@ class DigiflazController extends Controller
     /* =========================================================================
         TOPUP PREPAID — APPLY MARKUP + SALDO CHECK + POTONG SALDO + HIT API
     ========================================================================= */
-   public function digiflazTopup(Request $request)
+    public function digiflazTopup(Request $request)
 {
     $request->validate([
         'sku'         => 'required|string',
@@ -273,7 +273,7 @@ class DigiflazController extends Controller
         return new ApiResponseResource([
             'status'  => $data['status'] ?? 'error',
             'ref_id'  => $ref_id,
-            'message' => $data['message'] ?? 'Gagal cek tagihan',
+            'message' => 'tagihan berhasil di cek',
             'data'    => $data
         ]);
     }
@@ -282,41 +282,114 @@ class DigiflazController extends Controller
     /* =========================================================================
         BAYAR TAGIHAN PASCA
     ========================================================================= */
-    public function digiflazBayarTagihan(Request $request)
-    {
-        $request->validate([
-            'sku'         => 'required|string',
-            'customer_no' => 'required|string|min:6',
-        ]);
+   public function digiflazBayarTagihan(Request $request)
+{
+    $request->validate([
+        'sku'         => 'required|string',
+        'customer_no' => 'required|string|min:6',
+    ]);
 
-        $ref_id  = $this->getCode();
-        $product = ProductPasca::findBySKU($request->sku)->first();
+    $ref_id = $this->getCode();
+    $user   = auth()->user();
 
-        $response = Http::withHeaders($this->header)->post($this->url . '/transaction', [
-            "commands"       => "pay-pasca",
-            "username"       => $this->user,
-            "buyer_sku_code" => $request->sku,
-            "customer_no"    => $request->customer_no,
-            "ref_id"         => $ref_id,
-            "sign"           => md5($this->user . $this->key . $ref_id),
-        ]);
-
-        $result = $response->json();
-        $data   = $result['data'] ?? null;
-
-        if ($data && $product) {
-            $this->model_transaction->insert_transaction_data(
-                $data,
-                'Pasca',
-                $product->product_provider
-            );
-        }
-
+    if (!$user) {
         return new ApiResponseResource([
-            'status'  => $data['status'] ?? 'error',
+            'status'  => 'error',
             'ref_id'  => $ref_id,
-            'message' => $data['message'] ?? 'Pembayaran gagal',
-            'data'    => $data
+            'message' => 'User tidak login',
+            'data'    => null,
         ]);
     }
+
+    // Ambil produk pasca
+    $product = ProductPasca::findBySKU($request->sku)->first();
+    if (!$product) {
+        return new ApiResponseResource([
+            'status'  => 'error',
+            'ref_id'  => $ref_id,
+            'message' => 'SKU tidak ditemukan',
+            'data'    => null,
+        ]);
+    }
+
+    // Menggunakan harga admin + harga pasca
+    $pricingService = new PricingService();
+    $roleId = (int)($user->role_id ?? 1);
+
+    $harga_modal = (float)$product->product_seller_price;
+
+    $harga_jual = $pricingService->applyMarkup(
+        $harga_modal,
+        $roleId
+    );
+
+    // ================= SALDO TIDAK CUKUP =================
+    if ($user->saldo < $harga_jual) {
+
+        // Insert transaksi manual tanpa hit API Digiflazz
+        $this->model_transaction->insert_transaction_data(
+            [
+                'ref_id'        => $ref_id,
+                'customer_no'   => $request->customer_no,
+                'buyer_sku_code'=> $request->sku,
+                'message'       => 'Saldo tidak cukup',
+                'status'        => 'Gagal'
+            ],
+            'Pasca',
+            $product->product_provider,
+            $user->id,
+            $harga_jual
+        );
+
+        return new ApiResponseResource([
+            'status'  => 'error',
+            'ref_id'  => $ref_id,
+            'message' => 'Saldo tidak cukup',
+            'data'    => [
+                'saldo' => $user->saldo,
+                'harga' => $harga_jual
+            ]
+        ]);
+    }
+
+    // ================= SALDO CUKUP → PROSES DIGIFLAZZ =================
+    $response = Http::withHeaders($this->header)->post($this->url . '/transaction', [
+        "commands"       => "pay-pasca",
+        "username"       => $this->user,
+        "buyer_sku_code" => $request->sku,
+        "customer_no"    => $request->customer_no,
+        "ref_id"         => $ref_id,
+        "sign"           => md5($this->user . $this->key . $ref_id),
+    ]);
+
+    $result = $response->json();
+    $data   = $result['data'] ?? null;
+
+    // Potong saldo jika status Pending atau Sukses
+    if ($data && in_array($data['status'], ['Sukses', 'Pending'])) {
+        DB::transaction(function () use ($user, $harga_jual) {
+            $user->saldo -= $harga_jual;
+            $user->save();
+        });
+    }
+
+    // Insert transaksi pasca
+    if ($data) {
+        $this->model_transaction->insert_transaction_data(
+            $data,
+            'Pasca',
+            $product->product_provider,
+            $user->id,
+            $harga_jual
+        );
+    }
+
+    return new ApiResponseResource([
+        'status'  => $data['status'] ?? 'error',
+        'ref_id'  => $ref_id,
+        'message' => $data['message'] ?? 'Pembayaran gagal',
+        'data'    => $data
+    ]);
+}
+
 }
