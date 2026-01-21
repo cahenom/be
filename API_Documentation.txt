@@ -1,0 +1,242 @@
+# API Documentation
+
+## Authentication
+All endpoints except login/register require authentication using Sanctum tokens.
+
+---
+
+## User Profile
+### GET /api/user/profile
+**Description:** Get user profile information
+
+**Response:**
+```json
+{
+  "status": true,
+  "message": "User profile fetched.",
+  "data": {
+    "id": 1,
+    "name": "John Doe",
+    "email": "john@example.com",
+    "saldo": 100000,
+    "role_id": 1,
+    "created_at": "2023-01-01 00:00:00",
+    "updated_at": "2023-01-01 00:00:00"
+  },
+  "code": 200
+}
+```
+
+---
+
+## User Transactions
+### POST /api/user/transaksi
+**Description:** Get user transaction history (includes both prepaid and postpaid)
+
+**Response:**
+```json
+{
+  "status": true,
+  "message": "User transactions berhasil didapatkan.",
+  "data": [
+    {
+      "ref": "INV-001",
+      "tujuan": "081234567890",
+      "sku": "TELKOMSEL10K",
+      "status": "Sukses",
+      "message": "Transaksi Sukses",
+      "price": 10000,
+      "sn": "SERIAL001",
+      "type": "prepaid",
+      "created_at": "2023-01-01T10:00:00.000000Z"
+    },
+    {
+      "ref": "INV-002",
+      "tujuan": "530000000001",
+      "sku": "PLNPASCA",
+      "status": "Sukses",
+      "message": "Transaksi Sukses",
+      "price": 125000,
+      "sn": "SERIAL002",
+      "type": "postpaid",
+      "created_at": "2023-01-01T11:00:00.000000Z"
+    }
+  ],
+  "code": 200
+}
+```
+
+---
+
+## Topup Prepaid
+### POST /api/order/topup
+**Description:** Purchase prepaid credit
+
+**Request:**
+```json
+{
+  "sku": "TELKOMSEL10K",
+  "customer_no": "081234567890"
+}
+```
+
+**Response:**
+```json
+{
+  "status": "Pending",
+  "message": "Transaksi Pending",
+  "data": {
+    "ref": "INV-001",
+    "tujuan": "081234567890",
+    "sku": "TELKOMSEL10K",
+    "status": "Pending",
+    "message": "Transaksi Pending",
+    "price": 10000,
+    "sn": ""
+  },
+  "code": 200
+}
+```
+
+---
+
+## Check Postpaid Bill
+### POST /api/order/cek-tagihan
+**Description:** Check postpaid bill information
+
+**Request:**
+```json
+{
+  "sku": "PLNPASCA",
+  "customer_no": "530000000001"
+}
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "ref_id": "REF001",
+  "message": "tagihan berhasil di cek",
+  "data": {
+    "ref_id": "REF001",
+    "customer_no": "530000000001",
+    "customer_name": "John Doe",
+    "status": "success",
+    "message": "Transaksi Sukses",
+    "price": 100000,
+    "selling_price": 102500,
+    "admin": 2500,
+    "periode": "202301",
+    "desc": {
+      "tarif": "R1",
+      "daya": 1300,
+      "lembar_tagihan": 1
+    }
+  },
+  "code": 200
+}
+```
+
+---
+
+## Pay Postpaid Bill
+### POST /api/order/bayar-tagihan
+**Description:** Pay postpaid bill
+
+**Request:**
+```json
+{
+  "ref_id": "REF001",
+  "customer_no": "530000000001"
+}
+```
+
+**Response:**
+```json
+{
+  "status": "Sukses",
+  "ref_id": "PAY001",
+  "message": "Transaksi Sukses",
+  "data": {
+    "ref_id": "PAY001",
+    "customer_no": "530000000001",
+    "customer_name": "John Doe",
+    "status": "Sukses",
+    "message": "Transaksi Sukses",
+    "price": 100000,
+    "selling_price": 102500,
+    "admin": 2500,
+    "periode": "202301"
+  },
+  "code": 200
+}
+```
+
+---
+
+## Product Lists
+### POST /api/order/get-product-prepaid
+**Description:** Get prepaid product list
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Produk prepaid berhasil diperbarui",
+  "data": {
+    "total": 10
+  },
+  "ref_id": null,
+  "code": 200
+}
+```
+
+### POST /api/order/get-product-pasca
+**Description:** Get postpaid product list
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Produk pasca berhasil diperbarui",
+  "data": {
+    "total": 5
+  },
+  "ref_id": null,
+  "code": 200
+}
+```
+
+---
+
+## Webhook
+### POST /webhook
+**Description:** Digiflazz webhook endpoint
+
+**Expected Headers:**
+- X-Hub-Signature: sha1=signature_hash
+- Content-Type: application/json
+
+**Payload:**
+```json
+{
+  "data": {
+    "ref_id": "REF001",
+    "customer_no": "081234567890",
+    "buyer_sku_code": "TELKOMSEL10K",
+    "message": "Transaksi Sukses",
+    "status": "Sukses",
+    "rc": "00",
+    "sn": "SERIAL_NUMBER",
+    "price": 10000
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "message": "OK"
+}
+```

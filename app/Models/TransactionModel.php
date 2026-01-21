@@ -23,6 +23,7 @@ class TransactionModel extends Model
         'transaction_total',
         'transaction_message',
         'transaction_status',
+        'transaction_sn',
         'transaction_user_id',
     ];
 
@@ -40,6 +41,7 @@ class TransactionModel extends Model
         'transaction_total'    => $harga_jual,    // <===== HARGA JUAL, BUKAN DARI DIGIFLAZZ
         'transaction_message'  => $data['message'],
         'transaction_status'   => $data['status'],
+        'transaction_sn'       => $data['sn'] ?? null,  // Add SN field
         'transaction_user_id'  => $user_id
     ]);
 }
