@@ -18,7 +18,8 @@ class AuthController extends Controller
         $request->validate([
             'name' => 'required|string|max:100',
             'email' => 'required|email|unique:users,email',
-            'password' => 'required|min:6|confirmed'
+            'password' => 'required|min:6|confirmed',
+            'fcm_token' => 'nullable|string' // Add validation for FCM token
         ]);
 
         $user = User::create([
@@ -26,8 +27,8 @@ class AuthController extends Controller
             'email' => $request->email,
             'roles_id' => 2,
             'password' => Hash::make($request->password),
-            'saldo' => 0 // 👈 saldo awal
-
+            'saldo' => 0, // 👈 saldo awal
+            'fcm_token' => $request->fcm_token // Save FCM token if provided
         ]);
 
         $token = $user->createToken('auth-token')->plainTextToken;
@@ -48,14 +49,22 @@ class AuthController extends Controller
     {
         $request->validate([
             'email' => 'required|email',
-            'password' => 'required'
+            'password' => 'required',
+            'fcm_token' => 'nullable|string' // Add validation for FCM token
         ]);
 
-        if (!Auth::attempt($request->only('email', 'password'))) {
+        $credentials = $request->only('email', 'password');
+
+        if (!Auth::attempt($credentials)) {
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
         $user = Auth::user();
+
+        // Update FCM token if provided
+        if ($request->filled('fcm_token')) {
+            $user->updateFcmToken($request->fcm_token);
+        }
 
         $token = $user->createToken('auth-token')->plainTextToken;
 

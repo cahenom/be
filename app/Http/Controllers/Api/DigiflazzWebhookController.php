@@ -6,9 +6,18 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use App\Models\TransactionModel;
+use App\Services\FirebaseService;
+use App\Models\User;
 
 class DigiflazzWebhookController extends Controller
 {
+    protected FirebaseService $firebaseService;
+
+    public function __construct(FirebaseService $firebaseService)
+    {
+        $this->firebaseService = $firebaseService;
+    }
+
     public function handle(Request $request)
     {
         // 1. Raw body untuk validasi signature
@@ -164,6 +173,9 @@ class DigiflazzWebhookController extends Controller
             }
         }
 
+        // Send FCM notification after processing the webhook
+        $this->sendFcmNotification($data, $trx, $postpaidTrx);
+
         Log::info('Digiflazz webhook OK', [
             'ref_id' => $data['ref_id'],
             'status' => $data['status'],
@@ -171,6 +183,97 @@ class DigiflazzWebhookController extends Controller
         ]);
 
         return response()->json(['message' => 'OK'], 200);
+    }
+
+    /**
+     * Send FCM notification to user about transaction status
+     */
+    private function sendFcmNotification($data, $trx, $postpaidTrx)
+    {
+        try {
+            // Determine which user to notify based on transaction
+            $user = null;
+
+            if ($trx) {
+                $user = User::find($trx->transaction_user_id);
+            } elseif ($postpaidTrx) {
+                $user = User::find($postpaidTrx->user_id);
+            } else {
+                // If no transaction found, try to find by ref_id in transactions table
+                $genericTrx = \App\Models\Transaction::where('ref_id', $data['ref_id'])->first();
+                if ($genericTrx) {
+                    $user = User::find($genericTrx->user_id);
+                }
+            }
+
+            if ($user && $user->getFcmToken()) {
+                // Get product name based on SKU
+                $productName = $this->getProductName($data['buyer_sku_code'] ?? '', $postpaidTrx ? 'Pasca' : 'Prepaid');
+
+                // Create notification message
+                $title = 'Pembelian Selesai';
+                $body = "Pembelian {$productName} ({$data['status']}) selesai";
+
+                // Send notification to user
+                $result = $this->firebaseService->sendNotificationToUser(
+                    $user,
+                    $title,
+                    $body,
+                    [
+                        'type' => 'transaction_update',
+                        'ref_id' => $data['ref_id'],
+                        'product' => $productName,
+                        'status' => $data['status'],
+                        'customer_number' => $data['customer_no'] ?? null,
+                        'transaction_type' => $postpaidTrx ? 'Pasca' : 'Prepaid'
+                    ]
+                );
+
+                if ($result['success']) {
+                    Log::info("FCM Notification sent successfully to user {$user->id}", [
+                        'user_id' => $user->id,
+                        'ref_id' => $data['ref_id'],
+                        'product' => $productName
+                    ]);
+                } else {
+                    Log::error("Failed to send FCM notification to user {$user->id}", [
+                        'error' => $result['error'],
+                        'user_id' => $user->id
+                    ]);
+                }
+            } else {
+                if (!$user) {
+                    Log::info('No user found for FCM notification', [
+                        'ref_id' => $data['ref_id'],
+                        'customer_no' => $data['customer_no'] ?? null
+                    ]);
+                } else {
+                    Log::info('User has no FCM token for notification', [
+                        'user_id' => $user->id,
+                        'ref_id' => $data['ref_id']
+                    ]);
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error("Exception while sending FCM notification", [
+                'error' => $e->getMessage(),
+                'ref_id' => $data['ref_id'] ?? null
+            ]);
+        }
+    }
+
+    /**
+     * Get product name based on SKU
+     */
+    private function getProductName($sku, $type)
+    {
+        if ($type === 'Prepaid') {
+            $product = \App\Models\ProductPrepaid::findProductBySKU($sku)->first();
+            return $product ? $product->product_name : $sku;
+        } else {
+            $product = \App\Models\ProductPasca::findBySKU($sku)->first();
+            return $product ? $product->product_name : $sku;
+        }
     }
 
     /**

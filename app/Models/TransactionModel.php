@@ -27,23 +27,29 @@ class TransactionModel extends Model
         'transaction_user_id',
     ];
 
-
     public function insert_transaction_data($data, $type, $provider, $user_id, $harga_jual)
-{
-    return self::create([
-        'transaction_code'     => $data['ref_id'],
-        'transaction_date'     => now()->format('Y-m-d'),
-        'transaction_time'     => now()->format('H:i:s'),
-        'transaction_type'     => $type,
-        'transaction_provider' => $provider,
-        'transaction_number'   => $data['customer_no'],
-        'transaction_sku'      => $data['buyer_sku_code'],
-        'transaction_total'    => $harga_jual,    // <===== HARGA JUAL, BUKAN DARI DIGIFLAZZ
-        'transaction_message'  => $data['message'],
-        'transaction_status'   => $data['status'],
-        'transaction_sn'       => $data['sn'] ?? null,  // Add SN field
-        'transaction_user_id'  => $user_id
-    ]);
-}
+    {
+        return self::create([
+            'transaction_code'     => $data['ref_id'],
+            'transaction_date'     => now()->format('Y-m-d'),
+            'transaction_time'     => now()->format('H:i:s'),
+            'transaction_type'     => $type,
+            'transaction_provider' => $provider,
+            'transaction_number'   => $data['customer_no'],
+            'transaction_sku'      => $data['buyer_sku_code'],
+            'transaction_total'    => $harga_jual,    // <===== HARGA JUAL, BUKAN DARI DIGIFLAZZ
+            'transaction_message'  => $data['message'],
+            'transaction_status'   => $data['status'],
+            'transaction_sn'       => $data['sn'] ?? null,  // Add SN field
+            'transaction_user_id'  => $user_id
+        ]);
+    }
 
+    /**
+     * Get the user that owns the transaction.
+     */
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'transaction_user_id');
+    }
 }

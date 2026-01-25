@@ -4,9 +4,10 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\DigiflazController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\FirebaseController;
+use App\Http\Controllers\TestFirebaseController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\DigiflazzWebhookController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -19,8 +20,10 @@ use App\Http\Controllers\Api\DigiflazzWebhookController;
 */
 
 
-Route::post('/digiflazz/webhook', [DigiflazzWebhookController::class, 'handle']);
+Route::post('/digiflazz/webhook', [\App\Http\Controllers\Api\DigiflazzWebhookController::class, 'handle']);
 
+// Test route for Firebase connection
+Route::get('/test-firebase', [TestFirebaseController::class, 'testConnection']);
 
 Route::post(
     '/auth/login',
@@ -51,15 +54,21 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/bayar-tagihan', 'digiflazBayarTagihan');
     });
 
+    // Product endpoints with descriptions
     Route::controller(ProductController::class)->prefix('product')->group(function () {
-        Route::post('/pulsa', 'pulsa');
-        Route::post('/emoney', 'emoney');
-        Route::post('/games', 'games');
-        Route::post('/masaaktif', 'masa_aktif');
-        Route::post('/pln', 'pln');
-        Route::post('/tv', 'tv');
-        Route::post('/voucher', 'voucher');
-        Route::post('/category', 'category');
+        Route::post('/pulsa', 'pulsa');          // Get pulsa and data package products based on customer number
+        Route::post('/emoney', 'emoney');        // Get e-money products
+        Route::post('/games', 'games');          // Get game products
+        Route::post('/masaaktif', 'masa_aktif'); // Get active period products
+        Route::post('/pln', 'pln');              // Get PLN (electricity) products
+        Route::post('/tv', 'tv');                // Get TV subscription products
+        Route::post('/voucher', 'voucher');      // Get voucher products
+        Route::post('/category', 'category');    // Get product category list
 
     });
+
+    // Firebase Cloud Messaging routes
+    Route::post('/fcm/token', [FirebaseController::class, 'saveToken']);           // Save FCM token for authenticated user
+    Route::post('/fcm/send-test', [FirebaseController::class, 'sendTestNotification']); // Send test notification to authenticated user
+    Route::post('/fcm/send-bulk', [FirebaseController::class, 'sendBulkNotification']); // Send bulk notifications to multiple users
 });

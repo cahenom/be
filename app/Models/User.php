@@ -22,6 +22,7 @@ class User extends Authenticatable
         'email',
         'roles_id',
         'password',
+        'fcm_token',
     ];
 
     /**
@@ -43,4 +44,36 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
+
+    /**
+     * Store FCM token for the user
+     */
+    public function updateFcmToken(string $token): void
+    {
+        $this->update(['fcm_token' => $token]);
+    }
+
+    /**
+     * Get FCM token for the user
+     */
+    public function getFcmToken(): ?string
+    {
+        return $this->fcm_token;
+    }
+
+    /**
+     * Get the transactions for the user.
+     */
+    public function transactions()
+    {
+        return $this->hasMany(TransactionModel::class, 'transaction_user_id');
+    }
+
+    /**
+     * Get the postpaid transactions for the user.
+     */
+    public function pascaTransactions()
+    {
+        return $this->hasMany(\App\Models\PascaTransaction::class, 'user_id');
+    }
 }

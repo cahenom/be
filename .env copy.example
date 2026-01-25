@@ -67,3 +67,13 @@ DIGIFLAZ_URL=https://api.digiflazz.com/v1
 #digiflaz mode development|production
 #default development
 DIGIFLAZ_MODE=development
+
+# Firebase Configuration
+# Place your service account JSON file in storage/app/firebase/ directory
+# Then reference it here (relative to storage_path())
+FIREBASE_CREDENTIALS_FILE= # e.g., app/firebase/service-account.json
+# Alternative: Individual credentials (not recommended for production)
+FIREBASE_PROJECT_ID=punya-kios
+FIREBASE_CLIENT_EMAIL= # Found in service account JSON
+FIREBASE_PRIVATE_KEY_ID= # Found in service account JSON
+FIREBASE_PRIVATE_KEY= # Found in service account JSON (with proper newlines)

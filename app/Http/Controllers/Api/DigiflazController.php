@@ -12,6 +12,7 @@ use App\Traits\CodeGenerate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class DigiflazController extends Controller
 {
@@ -166,8 +167,10 @@ class DigiflazController extends Controller
     // Potong saldo jika sukses/pending
     if ($data && in_array($data['status'], ['Sukses', 'Pending'])) {
         DB::transaction(function () use ($user, $harga_jual) {
-            $user->saldo -= $harga_jual;
-            $user->save();
+            // Reload user to ensure we have a fresh model instance
+            $freshUser = \App\Models\User::findOrFail($user->id);
+            $freshUser->saldo -= $harga_jual;
+            $freshUser->save();
         });
     } else if ($data && $data['status'] === 'Gagal') {
         // If transaction failed, make sure to refund or handle appropriately
@@ -553,8 +556,10 @@ class DigiflazController extends Controller
 
     // Potong saldo terlebih dahulu sebelum melakukan pembayaran
     DB::transaction(function () use ($user, $harga_jual) {
-        $user->saldo -= $harga_jual;
-        $user->save();
+        // Reload user to ensure we have a fresh model instance
+        $freshUser = \App\Models\User::findOrFail($user->id);
+        $freshUser->saldo -= $harga_jual;
+        $freshUser->save();
     });
 
     try {
@@ -619,8 +624,10 @@ class DigiflazController extends Controller
 
             // Refund the balance since payment failed
             DB::transaction(function () use ($user, $harga_jual) {
-                $user->saldo += $harga_jual;
-                $user->save();
+                // Reload user to ensure we have a fresh model instance
+                $freshUser = \App\Models\User::findOrFail($user->id);
+                $freshUser->saldo += $harga_jual;
+                $freshUser->save();
             });
         }
     } catch (\Exception $e) {
@@ -634,8 +641,10 @@ class DigiflazController extends Controller
 
         // If there's an exception during API call, refund the balance
         DB::transaction(function () use ($user, $harga_jual) {
-            $user->saldo += $harga_jual;
-            $user->save();
+            // Reload user to ensure we have a fresh model instance
+            $freshUser = \App\Models\User::findOrFail($user->id);
+            $freshUser->saldo += $harga_jual;
+            $freshUser->save();
         });
 
         // Update the pasca transaction status to failed
@@ -725,7 +734,8 @@ class DigiflazController extends Controller
      */
     private function logInfo($message, $context = [])
     {
-        if (env('DIGIFLAZ_MODE') === 'development') {
+        $mode = env('DIGIFLAZ_MODE', 'production'); // default to production if not set
+        if ($mode === 'development') {
             \Log::info($message, $context);
         }
     }
@@ -735,7 +745,8 @@ class DigiflazController extends Controller
      */
     private function logRawApiResponse($message, $context = [])
     {
-        if (env('DIGIFLAZ_MODE') === 'development') {
+        $mode = env('DIGIFLAZ_MODE', 'production'); // default to production if not set
+        if ($mode === 'development') {
             \Log::info($message, $context);
         }
     }
@@ -745,7 +756,8 @@ class DigiflazController extends Controller
      */
     private function logApiCall($message, $context = [])
     {
-        if (env('DIGIFLAZ_MODE') === 'development') {
+        $mode = env('DIGIFLAZ_MODE', 'production'); // default to production if not set
+        if ($mode === 'development') {
             \Log::info($message, $context);
         }
     }
