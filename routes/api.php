@@ -3,6 +3,8 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\DigiflazController;
+use App\Http\Controllers\Api\MerchantController;
+use App\Http\Controllers\Api\PaymentRequestController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\FirebaseController;
 use App\Http\Controllers\TestFirebaseController;
@@ -33,6 +35,9 @@ Route::post(
     '/auth/register',
     [AuthController::class, 'AuthRegister']
 );
+
+// Merchant payment request route (public - no authentication required)
+Route::post('/merchant', [MerchantController::class, 'handlePaymentRequest']); // Handle merchant payment requests and notify users
 
 Route::middleware(['auth:sanctum'])->group(function () {
 
@@ -71,4 +76,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/fcm/token', [FirebaseController::class, 'saveToken']);           // Save FCM token for authenticated user
     Route::post('/fcm/send-test', [FirebaseController::class, 'sendTestNotification']); // Send test notification to authenticated user
     Route::post('/fcm/send-bulk', [FirebaseController::class, 'sendBulkNotification']); // Send bulk notifications to multiple users
+
+    // Payment request operations for users (require authentication)
+    Route::get('/payment-requests/pending', [PaymentRequestController::class, 'getUserPendingRequests']); // Get pending payment requests for user
+    Route::get('/payment-requests/{id}', [PaymentRequestController::class, 'showPaymentRequest']); // Get specific payment request
+    Route::post('/payment-requests/{id}/approve', [PaymentRequestController::class, 'approvePaymentRequest']); // Approve a payment request
+    Route::post('/payment-requests/{id}/reject', [PaymentRequestController::class, 'rejectPaymentRequest']); // Reject a payment request
 });

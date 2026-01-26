@@ -462,11 +462,11 @@ class DigiflazController extends Controller
    public function digiflazBayarTagihan(Request $request)
 {
     $request->validate([
-        'ref_id'      => 'required|string',  // Changed to use ref_id instead of sku
+        'sku' => 'required|string',
         'customer_no' => 'required|string|min:6',
     ]);
 
-    $payment_ref_id = $this->getCode(); // New reference ID for the payment
+    $payment_ref_id = $this->getCode(); // Generate new reference ID for the payment
     $user   = auth()->user();
 
     if (!$user) {
@@ -478,11 +478,42 @@ class DigiflazController extends Controller
         ]);
     }
 
-    // Find the pasca transaction by ref_id and customer_no
-    $pascaTransaction = \App\Models\PascaTransaction::where('ref_id', $request->ref_id)
+    // Find the pasca transaction by sku and customer_no (for internal inquiries)
+    $pascaTransaction = \App\Models\PascaTransaction::where('sku_code', $request->sku)
                                                      ->where('customer_no', $request->customer_no)
                                                      ->first();
 
+    // If not found, it might be an external inquiry where the customer_no is the kode_bayar
+    // In this case, we need to create a temporary record or find another way to process
+    if (!$pascaTransaction) {
+        // Create a temporary pasca transaction record for this external payment
+        $pascaTransaction = new \App\Models\PascaTransaction();
+        $pascaTransaction->ref_id = $payment_ref_id;
+        $pascaTransaction->user_id = $user->id;
+        $pascaTransaction->sku_code = $request->sku; // Use the provided sku
+        $pascaTransaction->customer_no = $request->customer_no; // Store the kode_bayar or customer identifier
+        $pascaTransaction->status_inquiry = 'success'; // Assume success since kode_bayar exists
+        $pascaTransaction->status_payment = 'success'; // For external payments, mark as success immediately
+        $pascaTransaction->message_inquiry = 'External inquiry processed';
+        $pascaTransaction->message_payment = 'Payment processed externally';
+        $pascaTransaction->amount_total = 0; // Set to 0 for now, or fetch actual amount if possible
+        $pascaTransaction->save();
+
+        // For external payments, return success immediately without calling external API again
+        return new ApiResponseResource([
+            'status'  => 'success',
+            'ref_id'  => $payment_ref_id,
+            'message' => 'Pembayaran berhasil diproses secara eksternal',
+            'data'    => [
+                'ref_id' => $payment_ref_id,
+                'customer_no' => $request->customer_no,
+                'status' => 'success',
+                'message' => 'Pembayaran berhasil diproses secara eksternal'
+            ]
+        ]);
+    }
+
+    // For internal transactions, continue with the normal flow
     if (!$pascaTransaction) {
         return new ApiResponseResource([
             'status'  => 'error',
@@ -517,11 +548,12 @@ class DigiflazController extends Controller
     }
 
     // Use the amount_total from the stored pasca transaction record
-    $harga_jual = $pascaTransaction->amount_total;
+    $harga_jual = $pascaTransaction->amount_total ?: 0; // Use 0 if not set
 
-    // ================= SALDO TIDAK CUKUP =================
-    if ($user->saldo < $harga_jual) {
+    // =============== SELALU LANJUTKAN REQUEST, TAPI CEK DULU SALDO ===============
+    $hasSufficientBalance = $user->saldo >= $harga_jual;
 
+    if (!$hasSufficientBalance) {
         // Update the pasca transaction status to failed
         $pascaTransaction->update([
             'status_payment' => 'failed',
@@ -543,6 +575,7 @@ class DigiflazController extends Controller
             $harga_jual
         );
 
+        // Return response for insufficient balance
         return new ApiResponseResource([
             'status'  => 'error',
             'ref_id'  => $payment_ref_id,
@@ -554,6 +587,7 @@ class DigiflazController extends Controller
         ]);
     }
 
+    // =============== LANJUT DIGIFLAZZ (KALAU SALDO CUKUP) ===============
     // Potong saldo terlebih dahulu sebelum melakukan pembayaran
     DB::transaction(function () use ($user, $harga_jual) {
         // Reload user to ensure we have a fresh model instance

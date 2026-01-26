@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 
 class TransactionModel extends Model
@@ -43,6 +44,62 @@ class TransactionModel extends Model
             'transaction_sn'       => $data['sn'] ?? null,  // Add SN field
             'transaction_user_id'  => $user_id
         ]);
+    }
+
+    /**
+     * Insert merchant payment transaction
+     */
+    public static function insert_merchant_payment_transaction($external_id, $name, $email, $price, $destination, $status, $user_id)
+    {
+        // Sanitize the price value to ensure it fits in integer column
+        $sanitizedPrice = max(0, min(2147483647, (int)round(floatval($price))));
+
+        // Determine the transaction type and SKU based on status
+        $isSuccess = in_array($status, ['completed', 'approved', 'success']);
+        $transactionType = $isSuccess ? 'merchant_payment' : 'merchant_payment_failed';
+        $transactionSKU = $isSuccess ? 'MERCHANT_PAYMENT' : 'MERCHANT_PAYMENT_FAILED';
+        $messagePrefix = $isSuccess ? 'Payment for ' : 'Failed payment for ';
+
+        // Create transaction with only mandatory fields first
+        $transaction = new self();
+        $transaction->transaction_code = $external_id;
+        $transaction->transaction_date = now()->format('Y-m-d');
+        $transaction->transaction_time = now()->format('H:i:s');
+        $transaction->transaction_type = $transactionType;
+        $transaction->transaction_provider = $name;
+        $transaction->transaction_number = $email;
+        $transaction->transaction_sku = $transactionSKU;
+        $transaction->transaction_total = $sanitizedPrice;
+        $transaction->transaction_message = $messagePrefix . $destination;
+        $transaction->transaction_status = $status;
+        $transaction->transaction_user_id = $user_id;
+
+        // Only set transaction_sn if the column exists
+        if (Schema::hasColumn('transaction', 'transaction_sn')) {
+            $transaction->transaction_sn = null;
+        }
+
+        $transaction->save();
+
+        return $transaction;
+    }
+
+    /**
+     * Format transaction data for API response to match expected structure
+     */
+    public function formatForApiResponse()
+    {
+        return [
+            'ref' => $this->transaction_code,
+            'tujuan' => $this->transaction_number,
+            'sku' => $this->transaction_sku,
+            'status' => $this->transaction_status,
+            'message' => $this->transaction_message,
+            'price' => $this->transaction_total,
+            'sn' => $this->transaction_sn,
+            'type' => strpos($this->transaction_type, 'merchant') !== false ? 'merchant' : 'prepaid',
+            'created_at' => $this->created_at,
+        ];
     }
 
     /**

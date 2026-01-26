@@ -239,4 +239,144 @@ All endpoints except login/register require authentication using Sanctum tokens.
 {
   "message": "OK"
 }
+`
+
+---
+
+## Merchant Payment System
+### POST /api/merchant
+**Description:** Send a payment request to a user. This endpoint is used by external merchants to initiate payment requests. When called, it will store the payment request and send an FCM notification to the user.
+
+**Request:**
+```json
+{
+  "name": "Merchant Store",
+  "id": "ORD-12345",
+  "destination": "Product Purchase",
+  "price": 100000,
+  "email": "user@example.com"
+}
 ```
+
+**Response (Success - 200):**
+```json
+{
+  "message": "Payment request sent successfully",
+  "payment_request_id": 1,
+  "payment_details": {
+    "name": "Merchant Store",
+    "id": "ORD-12345",
+    "destination": "Product Purchase",
+    "price": 100000,
+    "email": "user@example.com"
+  }
+}
+```
+
+**Response (Error - 400, 404, 500):**
+```json
+{
+  "error": "string",
+  "messages": {} // Validation errors if any
+}
+```
+
+---
+
+### GET /api/payment-requests/pending
+**Description:** Get all pending payment requests for the authenticated user
+
+**Headers:**
+- Authorization: Bearer {token}
+
+**Response (Success - 200):**
+```json
+{
+  "payment_requests": [
+    {
+      "id": 1,
+      "external_id": "ORD-12345",
+      "name": "Merchant Store",
+      "destination": "Product Purchase",
+      "price": "100000.00",
+      "email": "user@example.com",
+      "status": "pending",
+      "created_at": "2023-01-01T10:00:00.000000Z"
+    }
+  ]
+}
+```
+
+---
+
+### GET /api/payment-requests/{id}
+**Description:** Get a specific payment request for the authenticated user
+
+**Headers:**
+- Authorization: Bearer {token}
+
+**Response (Success - 200):**
+```json
+{
+  "payment_request": {
+    "id": 1,
+    "external_id": "ORD-12345",
+    "name": "Merchant Store",
+    "destination": "Product Purchase",
+    "price": "100000.00",
+    "email": "user@example.com",
+    "status": "pending",
+    "created_at": "2023-01-01T10:00:00.000000Z"
+  }
+}
+```
+
+---
+
+### POST /api/payment-requests/{id}/approve
+**Description:** Approve a pending payment request
+
+**Headers:**
+- Authorization: Bearer {token}
+
+**Response (Success - 200):**
+```json
+{
+  "message": "Payment request approved successfully",
+  "payment_request": {
+    "id": 1,
+    "external_id": "ORD-12345",
+    "name": "Merchant Store",
+    "destination": "Product Purchase",
+    "price": "100000.00",
+    "email": "user@example.com",
+    "status": "approved",
+    "created_at": "2023-01-01T10:00:00.000000Z"
+  }
+}
+```
+
+---
+
+### POST /api/payment-requests/{id}/reject
+**Description:** Reject a pending payment request
+
+**Headers:**
+- Authorization: Bearer {token}
+
+**Response (Success - 200):**
+```json
+{
+  "message": "Payment request rejected successfully",
+  "payment_request": {
+    "id": 1,
+    "external_id": "ORD-12345",
+    "name": "Merchant Store",
+    "destination": "Product Purchase",
+    "price": "100000.00",
+    "email": "user@example.com",
+    "status": "rejected",
+    "created_at": "2023-01-01T10:00:00.000000Z"
+  }
+}
+`````

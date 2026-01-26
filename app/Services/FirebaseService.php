@@ -60,9 +60,21 @@ class FirebaseService
      */
     public function sendNotification(array $tokens, string $title, string $body, array $data = []): array
     {
+        // Convert all values to strings as FCM requires string values
+        $processedData = [];
+        foreach ($data as $key => $value) {
+            if (is_array($value)) {
+                $processedData[$key] = json_encode($value);
+            } elseif (is_object($value)) {
+                $processedData[$key] = json_encode($value);
+            } else {
+                $processedData[$key] = (string) $value;
+            }
+        }
+
         $message = \Kreait\Firebase\Messaging\CloudMessage::new()
             ->withNotification(\Kreait\Firebase\Messaging\Notification::create($title, $body))
-            ->withData($data);
+            ->withData($processedData);
 
         try {
             $response = $this->messaging->sendMulticast($message, $tokens);

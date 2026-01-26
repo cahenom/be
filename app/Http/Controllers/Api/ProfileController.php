@@ -53,7 +53,7 @@ class ProfileController extends Controller
     }
 
    /**
- * Ambil transaksi user (termasuk transaksi pasca bayar)
+ * Ambil transaksi user (termasuk transaksi pasca bayar dan permintaan pembayaran)
  */
 public function transactions(Request $request)
 {
@@ -79,7 +79,13 @@ public function transactions(Request $request)
                                          ->limit(20)
                                          ->get();
 
-    // Gabungkan kedua koleksi dan urutkan berdasarkan created_at terbaru
+    // Ambil 20 permintaan pembayaran terbaru dari payment_requests table
+    $paymentRequests = \App\Models\PaymentRequest::where('user_id', $user->id)
+                                                 ->orderBy('created_at', 'desc')
+                                                 ->limit(20)
+                                                 ->get();
+
+    // Gabungkan ketiga koleksi dan urutkan berdasarkan created_at terbaru
     $allTransactions = collect();
 
     foreach ($regularTransactions as $transaction) {
@@ -107,6 +113,22 @@ public function transactions(Request $request)
             'sn' => $transaction->sn, // Use the SN field from pasca transaction
             'type' => 'postpaid',
             'created_at' => $transaction->created_at,
+        ]);
+    }
+
+    // Tambahkan permintaan pembayaran ke dalam daftar transaksi
+    foreach ($paymentRequests as $request) {
+        $allTransactions->push([
+            'ref' => $request->external_id,
+            'tujuan' => $request->destination,
+            'sku' => 'MERCHANT_REQUEST',
+            'status' => $request->status,
+            'message' => 'Payment request from ' . $request->name,
+            'price' => $request->price,
+            'sn' => null,
+            'type' => 'merchant_request',
+            'created_at' => $request->created_at,
+            'internal_id' => $request->id, // Tambahkan ID internal untuk digunakan di frontend
         ]);
     }
 

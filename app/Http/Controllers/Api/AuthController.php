@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ApiResponseResource;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -33,7 +34,8 @@ class AuthController extends Controller
 
         $token = $user->createToken('auth-token')->plainTextToken;
 
-        return response()->json([
+        return new ApiResponseResource([
+            'status' => 'success',
             'message' => 'Register Success',
             'data' => [
                 'user' => $user,
@@ -56,7 +58,11 @@ class AuthController extends Controller
         $credentials = $request->only('email', 'password');
 
         if (!Auth::attempt($credentials)) {
-            return response()->json(['message' => 'Unauthorized'], 401);
+            return new ApiResponseResource([
+                'status' => 'error',
+                'message' => 'Unauthorized',
+                'data' => null
+            ], 401);
         }
 
         $user = Auth::user();
@@ -68,7 +74,8 @@ class AuthController extends Controller
 
         $token = $user->createToken('auth-token')->plainTextToken;
 
-        return response()->json([
+        return new ApiResponseResource([
+            'status' => 'success',
             'message' => 'Login Success',
             'data' => [
                 'user' => $user,
@@ -83,6 +90,11 @@ class AuthController extends Controller
     public function AuthLogout(Request $request)
     {
         $request->user()->tokens()->delete();
-        return response()->json(['message' => 'Logout successful']);
+
+        return new ApiResponseResource([
+            'status' => 'success',
+            'message' => 'Logout successful',
+            'data' => null
+        ]);
     }
 }
