@@ -119,6 +119,12 @@ class DigiflazzWebhookController extends Controller
                 'transaction_cost' => $cost,
                 'transaction_profit' => $profit,
             ]);
+
+            // If transaction failed, refund the user's balance
+            if (strtolower($data['status'] ?? '') === 'gagal') {
+                $this->refundUserBalance($trx, $selling);
+            }
+
             \Log::info('Prepaid transaction updated via webhook:', [
                 'ref_id' => $data['ref_id'],
                 'status' => $data['status'],
@@ -128,6 +134,12 @@ class DigiflazzWebhookController extends Controller
         } else {
             // For new transactions, set the transaction_total from the original creation
             $payloadToSave['transaction_total'] = $selling; // Only for new transactions
+
+            // If new transaction is failed, refund the user's balance
+            if (strtolower($data['status'] ?? '') === 'gagal') {
+                $this->refundUserBalance(null, $selling, $data['ref_id']);
+            }
+
             TransactionModel::create($payloadToSave);
             \Log::info('New prepaid transaction created via webhook:', [
                 'ref_id' => $data['ref_id'],
@@ -163,6 +175,12 @@ class DigiflazzWebhookController extends Controller
                     'message_payment' => $data['message'] ?? null,
                     'sn' => $data['sn'] ?? null, // Add SN field for postpaid
                 ]);
+
+                // If payment failed, refund the user's balance
+                if (strtolower($data['status'] ?? '') === 'gagal') {
+                    $this->refundUserBalanceForPostpaid($postpaidTrx);
+                }
+
                 \Log::info('Postpaid payment transaction updated via webhook:', [
                     'ref_id' => $data['ref_id'],
                     'status' => $data['status'],
@@ -295,6 +313,94 @@ class DigiflazzWebhookController extends Controller
             case 'error':
             default:
                 return 'failed';
+        }
+    }
+
+    /**
+     * Refund user balance when transaction fails
+     */
+    private function refundUserBalance($transaction = null, $amount = 0, $refId = null)
+    {
+        try {
+            $userId = null;
+
+            if ($transaction) {
+                $userId = $transaction->transaction_user_id;
+            } else if ($refId) {
+                // Find user ID from the original transaction based on ref_id
+                $originalTransaction = TransactionModel::where('transaction_code', $refId)->first();
+                if ($originalTransaction) {
+                    $userId = $originalTransaction->transaction_user_id;
+                }
+            }
+
+            if ($userId) {
+                // Use DB transaction with locking to safely refund the balance
+                \DB::transaction(function () use ($userId, $amount) {
+                    $user = User::where('id', $userId)->lockForUpdate()->first();
+                    if ($user) {
+                        $user->saldo += $amount;
+                        $user->save();
+
+                        \Log::info('User balance refunded due to failed transaction', [
+                            'user_id' => $userId,
+                            'amount' => $amount,
+                            'new_balance' => $user->saldo
+                        ]);
+                    }
+                });
+            } else {
+                \Log::warning('Could not find user for refund on failed transaction', [
+                    'ref_id' => $refId,
+                    'transaction_id' => $transaction ? $transaction->id : null
+                ]);
+            }
+        } catch (\Exception $e) {
+            \Log::error('Error processing balance refund for failed transaction', [
+                'error' => $e->getMessage(),
+                'ref_id' => $refId,
+                'user_id' => $userId ?? null
+            ]);
+        }
+    }
+
+    /**
+     * Refund user balance when postpaid transaction fails
+     */
+    private function refundUserBalanceForPostpaid($postpaidTransaction)
+    {
+        try {
+            $userId = $postpaidTransaction->user_id;
+            $amount = $postpaidTransaction->amount_total ?? 0;
+
+            if ($userId && $amount > 0) {
+                // Use DB transaction with locking to safely refund the balance
+                \DB::transaction(function () use ($userId, $amount) {
+                    $user = User::where('id', $userId)->lockForUpdate()->first();
+                    if ($user) {
+                        $user->saldo += $amount;
+                        $user->save();
+
+                        \Log::info('User balance refunded due to failed postpaid transaction', [
+                            'user_id' => $userId,
+                            'amount' => $amount,
+                            'new_balance' => $user->saldo
+                        ]);
+                    }
+                });
+            } else {
+                \Log::warning('Could not refund balance for failed postpaid transaction', [
+                    'postpaid_transaction_id' => $postpaidTransaction->id,
+                    'user_id' => $userId,
+                    'amount' => $amount
+                ]);
+            }
+        } catch (\Exception $e) {
+            \Log::error('Error processing balance refund for failed postpaid transaction', [
+                'error' => $e->getMessage(),
+                'postpaid_transaction_id' => $postpaidTransaction->id,
+                'user_id' => $postpaidTransaction->user_id ?? null
+            ]);
         }
     }
 }

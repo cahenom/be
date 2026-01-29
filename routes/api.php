@@ -24,9 +24,6 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/digiflazz/webhook', [\App\Http\Controllers\Api\DigiflazzWebhookController::class, 'handle']);
 
-// Test route for Firebase connection
-Route::get('/test-firebase', [TestFirebaseController::class, 'testConnection']);
-
 Route::post(
     '/auth/login',
     [AuthController::class, 'AuthLogin']
@@ -36,11 +33,7 @@ Route::post(
     [AuthController::class, 'AuthRegister']
 );
 
-// Merchant payment request route (public - no authentication required)
-Route::post('/merchant', [MerchantController::class, 'handlePaymentRequest']); // Handle merchant payment requests and notify users
-
 Route::middleware(['auth:sanctum'])->group(function () {
-
     Route::post(
         '/auth/logout',
         [AuthController::class, 'AuthLogout']
@@ -69,17 +62,22 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/tv', 'tv');                // Get TV subscription products
         Route::post('/voucher', 'voucher');      // Get voucher products
         Route::post('/category', 'category');    // Get product category list
-
+        Route::post('/pdam', 'pdam');            // Get PDAM products
+        Route::post('/internet', 'internet'); // Get internet products
+        Route::post('/bpjs', 'bpjs'); // Get BPJS products
     });
 
     // Firebase Cloud Messaging routes
-    Route::post('/fcm/token', [FirebaseController::class, 'saveToken']);           // Save FCM token for authenticated user
-    Route::post('/fcm/send-test', [FirebaseController::class, 'sendTestNotification']); // Send test notification to authenticated user
-    Route::post('/fcm/send-bulk', [FirebaseController::class, 'sendBulkNotification']); // Send bulk notifications to multiple users
-
+    Route::post('/fcm/token', [FirebaseController::class, 'saveToken']); 
+    
     // Payment request operations for users (require authentication)
     Route::get('/payment-requests/pending', [PaymentRequestController::class, 'getUserPendingRequests']); // Get pending payment requests for user
     Route::get('/payment-requests/{id}', [PaymentRequestController::class, 'showPaymentRequest']); // Get specific payment request
     Route::post('/payment-requests/{id}/approve', [PaymentRequestController::class, 'approvePaymentRequest']); // Approve a payment request
     Route::post('/payment-requests/{id}/reject', [PaymentRequestController::class, 'rejectPaymentRequest']); // Reject a payment request
+});
+
+Route::controller(MerchantController::class)->prefix('merchant')->group(function () {
+    Route::post('/profile', 'MerchantProfile');
+    Route::post('/request', 'HandlePaymentRequest'); // Send payment request to user
 });

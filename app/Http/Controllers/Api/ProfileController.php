@@ -69,18 +69,21 @@ public function transactions(Request $request)
 
     // Ambil 20 transaksi terbaru user dari transaction table (more than needed for combination)
     $regularTransactions = TransactionModel::where('transaction_user_id', $user->id)
+                                           ->with('user') // Eager load relasi user untuk menghindari N+1 query
                                            ->orderBy('created_at', 'desc')
                                            ->limit(20)
                                            ->get();
+                                           // ->remember(300) // Cache for 5 minutes - commented out for dynamic data
 
     // Ambil 20 transaksi pasca bayar terbaru dari pasca_transactions table (more than needed for combination)
     $pascaTransactions = PascaTransaction::where('user_id', $user->id)
                                          ->orderBy('created_at', 'desc')
                                          ->limit(20)
-                                         ->get();
+                                         ->get(); // PascaTransaction tidak memiliki relasi user jadi tidak perlu eager loading
 
     // Ambil 20 permintaan pembayaran terbaru dari payment_requests table
     $paymentRequests = \App\Models\PaymentRequest::where('user_id', $user->id)
+                                                 ->with('user') // Eager load relasi user untuk menghindari N+1 query
                                                  ->orderBy('created_at', 'desc')
                                                  ->limit(20)
                                                  ->get();

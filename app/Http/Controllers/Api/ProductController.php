@@ -7,8 +7,10 @@ use App\Http\Resources\ApiResponseResource;
 use App\Http\Resources\ProductResource;
 use App\Models\PrefixNumber;
 use App\Models\ProductPrepaid;
+use App\Models\ProductPasca;
 use App\Services\PricingService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class ProductController extends Controller
 {
@@ -42,7 +44,12 @@ class ProductController extends Controller
         ]);
 
         $prefix = substr($request->customer_no, 0, 4);
-        $provider = PrefixNumber::findProviderByNumber($prefix)->first();
+
+        // Cache provider lookup for 1 hour
+        $cacheKey = "provider_by_prefix_{$prefix}";
+        $provider = Cache::remember($cacheKey, 3600, function () use ($prefix) {
+            return PrefixNumber::findProviderByNumber($prefix)->first();
+        });
 
         if (!$provider) {
             return new ApiResponseResource([
@@ -53,12 +60,17 @@ class ProductController extends Controller
             ]);
         }
 
+        // Cache produk pulsa dan data untuk provider ini
         $pulsa = $this->applyMarkupToProducts(
-            ProductPrepaid::findProductByProvider($provider->provider, 'Pulsa')->get()
+            Cache::remember("products_pulsa_{$provider->provider}", 1800, function () use ($provider) {
+                return ProductPrepaid::findProductByProvider($provider->provider, 'Pulsa')->get();
+            })
         );
 
         $paketData = $this->applyMarkupToProducts(
-            ProductPrepaid::findProductByProvider($provider->provider, 'Data')->get()
+            Cache::remember("products_data_{$provider->provider}", 1800, function () use ($provider) {
+                return ProductPrepaid::findProductByProvider($provider->provider, 'Data')->get();
+            })
         );
 
         return new ApiResponseResource([
@@ -79,7 +91,9 @@ class ProductController extends Controller
     public function emoney()
     {
         $products = $this->applyMarkupToProducts(
-            ProductPrepaid::where('product_category', 'E-Money')->get()
+            Cache::remember('products_emoney', 1800, function () { // Cache for 30 minutes
+                return ProductPrepaid::where('product_category', 'E-Money')->get();
+            })
         );
 
         return new ApiResponseResource([
@@ -98,7 +112,9 @@ class ProductController extends Controller
     public function games()
     {
         $products = $this->applyMarkupToProducts(
-            ProductPrepaid::where('product_category', 'Games')->get()
+            Cache::remember('products_games', 1800, function () { // Cache for 30 minutes
+                return ProductPrepaid::where('product_category', 'Games')->get();
+            })
         );
 
         return new ApiResponseResource([
@@ -117,7 +133,9 @@ class ProductController extends Controller
     public function voucher()
     {
         $products = $this->applyMarkupToProducts(
-            ProductPrepaid::where('product_category', 'Voucher')->get()
+            Cache::remember('products_voucher', 1800, function () { // Cache for 30 minutes
+                return ProductPrepaid::where('product_category', 'Voucher')->get();
+            })
         );
 
         return new ApiResponseResource([
@@ -136,7 +154,9 @@ class ProductController extends Controller
     public function pln()
     {
         $products = $this->applyMarkupToProducts(
-            ProductPrepaid::where('product_category', 'PLN')->get()
+            Cache::remember('products_pln', 1800, function () { // Cache for 30 minutes
+                return ProductPrepaid::where('product_category', 'PLN')->get();
+            })
         );
 
         return new ApiResponseResource([
@@ -155,7 +175,9 @@ class ProductController extends Controller
     public function tv()
     {
         $products = $this->applyMarkupToProducts(
-            ProductPrepaid::where('product_category', 'TV')->get()
+            Cache::remember('products_tv', 1800, function () { // Cache for 30 minutes
+                return ProductPrepaid::where('product_category', 'TV')->get();
+            })
         );
 
         return new ApiResponseResource([
@@ -174,7 +196,9 @@ class ProductController extends Controller
     public function masa_aktif()
     {
         $products = $this->applyMarkupToProducts(
-            ProductPrepaid::where('product_category', 'Masa Aktif')->get()
+            Cache::remember('products_masa_aktif', 1800, function () { // Cache for 30 minutes
+                return ProductPrepaid::where('product_category', 'Masa Aktif')->get();
+            })
         );
 
         return new ApiResponseResource([
@@ -192,10 +216,12 @@ class ProductController extends Controller
     ------------------------------------------*/
     public function category()
     {
-        $category = ProductPrepaid::select('product_category')
-            ->distinct()
-            ->orderBy('product_category')
-            ->get();
+        $category = Cache::remember('product_categories', 3600, function () { // Cache for 1 hour
+            return ProductPrepaid::select('product_category')
+                ->distinct()
+                ->orderBy('product_category')
+                ->get();
+        });
 
         return new ApiResponseResource([
             'status' => 'success',
@@ -203,6 +229,63 @@ class ProductController extends Controller
             'message' => 'Daftar kategori produk',
             'data' => [
                 'category' => $category
+            ]
+        ]);
+    }
+
+    //get product PDAM pascabayar
+    public function pdam()
+    {
+        $products = $this->applyMarkupToProducts(
+            Cache::remember('products_pdam', 1800, function () { // Cache for 30 minutes
+                return ProductPasca::where('product_provider', 'PDAM')->get();
+            })
+        );
+
+        return new ApiResponseResource([
+            'status' => 'success',
+            'ref_id' => null,
+            'message' => 'Daftar produk PDAM pascabayar ditemukan',
+            'data' => [
+                'pdam' => ProductResource::collection($products)
+            ]
+        ]);
+    }
+
+    //get product internet pascabayar
+    public function internet()
+    {
+        $products = $this->applyMarkupToProducts(
+            Cache::remember('products_internet', 1800, function () { // Cache for 30 minutes
+                return ProductPasca::where('product_provider', 'INTERNET PASCABAYAR')->get();
+            })
+        );
+
+        return new ApiResponseResource([
+            'status' => 'success',
+            'ref_id' => null,
+            'message' => 'Daftar produk internet pascabayar ditemukan',
+            'data' => [
+                'internet' => ProductResource::collection($products)
+            ]
+        ]);
+    }
+
+    //get product bpjs
+    public function bpjs()
+    {
+        $products = $this->applyMarkupToProducts(
+            Cache::remember('products_bpjs', 1800, function () { // Cache for 30 minutes
+                return ProductPasca::where('product_provider', 'BPJS KESEHATAN')->get();
+            })
+        );
+
+        return new ApiResponseResource([
+            'status' => 'success',
+            'ref_id' => null,
+            'message' => 'Daftar produk BPJS ditemukan',
+            'data' => [
+                'bpjs' => ProductResource::collection($products)
             ]
         ]);
     }

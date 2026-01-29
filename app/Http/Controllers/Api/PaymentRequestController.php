@@ -41,6 +41,7 @@ class PaymentRequestController extends Controller
 
         $paymentRequests = PaymentRequest::where('user_id', $user->id)
             ->where('status', 'pending')
+            ->with('user') // Eager load relasi user untuk menghindari N+1 query
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -65,12 +66,14 @@ class PaymentRequestController extends Controller
         // Coba cari berdasarkan ID internal dulu, jika tidak ditemukan coba external_id
         $paymentRequest = PaymentRequest::where('id', $id)
             ->where('user_id', $user->id)
+            ->with('user') // Eager load relasi user untuk menghindari N+1 query
             ->first();
 
         // Jika tidak ditemukan berdasarkan ID internal, coba cari berdasarkan external_id
         if (!$paymentRequest) {
             $paymentRequest = PaymentRequest::where('external_id', $id)
                 ->where('user_id', $user->id)
+                ->with('user') // Eager load relasi user untuk menghindari N+1 query
                 ->first();
         }
 
@@ -122,7 +125,7 @@ class PaymentRequestController extends Controller
             'deduction_amount' => $deductionAmount
         ]);
 
-        // Use database transaction to ensure atomicity of balance deduction and addition
+        // Use database transaction to ensure atomicity of balance deduction (but not merchant balance addition yet)
         \DB::transaction(function () use ($user, $paymentRequest, $deductionAmount) {
             // Reload user to ensure we have a fresh model instance
             $freshUser = \App\Models\User::findOrFail($user->id);
@@ -144,20 +147,33 @@ class PaymentRequestController extends Controller
 
             if ($merchantId) {
                 $freshMerchant = \App\Models\Merchant::findOrFail($merchantId);
-                $freshMerchant->saldo += $deductionAmount;
-                $freshMerchant->save();
 
-                \Log::info('Updated merchant balance', [
-                    'merchant_id' => $merchantId,
-                    'amount_added' => $deductionAmount,
-                    'new_merchant_balance' => $freshMerchant->saldo
+                // Update payment request to indicate it's pending settlement
+                $paymentRequest->update([
+                    'settlement_status' => 'pending_settlement',
+                    'settlement_due_date' => now()->addDays(3), // 3 days settlement period
+                    'status' => 'success' // Change status to success after approval
                 ]);
 
-                // Send webhook notification to merchant about successful payment
-                $this->sendWebhookNotification($freshMerchant, $paymentRequest, 'completed', $deductionAmount);
+                \Log::info('Payment request marked for settlement', [
+                    'payment_request_id' => $paymentRequest->id,
+                    'merchant_id' => $merchantId,
+                    'amount' => $deductionAmount,
+                    'settlement_due_date' => $paymentRequest->settlement_due_date
+                ]);
+
+                // Send webhook notification to merchant about successful payment (pending settlement)
+                $this->sendWebhookNotification($freshMerchant, $paymentRequest, 'completed_pending_settlement', $deductionAmount);
             } else {
                 \Log::warning('Could not find merchant for payment request', [
                     'payment_request_id' => $paymentRequest->id
+                ]);
+
+                // Still update the settlement fields even if merchant isn't found
+                $paymentRequest->update([
+                    'settlement_status' => 'pending_settlement',
+                    'settlement_due_date' => now()->addDays(3), // 3 days settlement period
+                    'status' => 'success' // Change status to success after approval
                 ]);
             }
         });
@@ -256,12 +272,14 @@ class PaymentRequestController extends Controller
         // Coba cari berdasarkan ID internal dulu, jika tidak ditemukan coba external_id
         $paymentRequest = PaymentRequest::where('id', $id)
             ->where('user_id', $user->id)
+            ->with('user') // Eager load relasi user untuk menghindari N+1 query
             ->first();
 
         // Jika tidak ditemukan berdasarkan ID internal, coba cari berdasarkan external_id
         if (!$paymentRequest) {
             $paymentRequest = PaymentRequest::where('external_id', $id)
                 ->where('user_id', $user->id)
+                ->with('user') // Eager load relasi user untuk menghindari N+1 query
                 ->first();
         }
 
@@ -385,6 +403,7 @@ class PaymentRequestController extends Controller
 
         $paymentRequest = PaymentRequest::where('id', $id)
             ->where('user_id', $user->id)
+            ->with('user') // Eager load relasi user untuk menghindari N+1 query
             ->first();
 
         if (!$paymentRequest) {

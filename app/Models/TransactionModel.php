@@ -109,4 +109,28 @@ class TransactionModel extends Model
     {
         return $this->belongsTo(User::class, 'transaction_user_id');
     }
+
+    /**
+     * Scope to include user relation for better performance
+     */
+    public function scopeWithUser($query)
+    {
+        return $query->with('user');
+    }
+
+    /**
+     * Check for recent transactions with same customer number and SKU within last 10 minutes
+     * to prevent double spending
+     */
+    public function checkRecentTransaction($customerNumber, $sku, $userId, $minutes = 10)
+    {
+        $tenMinutesAgo = Carbon::now()->subMinutes($minutes);
+
+        return self::where('transaction_number', $customerNumber)
+                    ->where('transaction_sku', $sku)
+                    ->where('transaction_user_id', $userId)
+                    ->where('created_at', '>', $tenMinutesAgo)
+                    ->whereIn('transaction_status', ['Pending', 'Sukses', 'Proses']) // Only check active transactions
+                    ->exists();
+    }
 }

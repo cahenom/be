@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
 
 class ProductPrepaid extends Model
 {
@@ -25,6 +26,39 @@ class ProductPrepaid extends Model
         'product_stock',
         'product_multi',
     ];
+
+    /**
+     * Boot the model and attach event listeners
+     */
+    protected static function booted()
+    {
+        // Clear cache when a product is created, updated, or deleted
+        static::saved(function () {
+            self::clearRelatedCache();
+        });
+
+        static::deleted(function () {
+            self::clearRelatedCache();
+        });
+    }
+
+    /**
+     * Clear cache related to products
+     */
+    public static function clearRelatedCache()
+    {
+        // Clear all product-related cache
+        Cache::forget('products_emoney');
+        Cache::forget('products_games');
+        Cache::forget('products_voucher');
+        Cache::forget('products_pln');
+        Cache::forget('products_tv');
+        Cache::forget('products_masa_aktif');
+        Cache::forget('product_categories');
+
+        // Note: We don't clear provider-specific caches here as they're more granular
+        // Those would need to be cleared individually when needed
+    }
 
     public function scopeFindProductBySKU($query, $value)
 {

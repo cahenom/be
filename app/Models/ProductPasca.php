@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
 
 class ProductPasca extends Model
 {
@@ -20,6 +21,32 @@ class ProductPasca extends Model
         'product_transaction_fee',
         'product_sku',
     ];
+
+    /**
+     * Boot the model and attach event listeners
+     */
+    protected static function booted()
+    {
+        // Clear cache when a product is created, updated, or deleted
+        static::saved(function () {
+            self::clearRelatedCache();
+        });
+
+        static::deleted(function () {
+            self::clearRelatedCache();
+        });
+    }
+
+    /**
+     * Clear cache related to products
+     */
+    public static function clearRelatedCache()
+    {
+        // Clear all product-related cache
+        Cache::forget('products_pdam');
+        Cache::forget('products_internet');
+        Cache::forget('products_bpjs');
+    }
 
 
 

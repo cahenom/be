@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\RoleProfitSetting;
+use Illuminate\Support\Facades\Cache;
 
 class PricingService
 {
@@ -10,8 +11,12 @@ class PricingService
 {
     $basePrice = floatval($basePrice ?? 0);
 
-    $profit = RoleProfitSetting::where('role_id', $roleId)->first()
-        ?? RoleProfitSetting::where('is_default', true)->first();
+    // Cache role profit setting for 1 hour
+    $cacheKey = "role_profit_setting_{$roleId}";
+    $profit = Cache::remember($cacheKey, 3600, function () use ($roleId) {
+        return RoleProfitSetting::where('role_id', $roleId)->first()
+            ?? RoleProfitSetting::where('is_default', true)->first();
+    });
 
     if (!$profit) {
         \Log::warning("MARKUP: No profit setting found for role_id = {$roleId}");

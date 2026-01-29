@@ -74,6 +74,22 @@ class DigiflazController extends Controller
         ]);
     }
 
+    // Cek apakah ada transaksi serupa yang masih dalam proses (untuk mencegah double spending)
+    $recentTransaction = $this->model_transaction->checkRecentTransaction(
+        $request->customer_no,
+        $request->sku,
+        $user->id
+    );
+
+    if ($recentTransaction) {
+        return new ApiResponseResource([
+            'status'  => 'error',
+            'ref_id'  => $ref_id,
+            'message' => 'Transaksi untuk nomor dan produk ini masih dalam proses. Mohon tunggu hingga selesai.',
+            'data'    => null,
+        ]);
+    }
+
     // Ambil produk
     $product = ProductPrepaid::findProductBySKU($request->sku)->first();
     if (!$product) {
@@ -167,8 +183,8 @@ class DigiflazController extends Controller
     // Potong saldo jika sukses/pending
     if ($data && in_array($data['status'], ['Sukses', 'Pending'])) {
         DB::transaction(function () use ($user, $harga_jual) {
-            // Reload user to ensure we have a fresh model instance
-            $freshUser = \App\Models\User::findOrFail($user->id);
+            // Reload user with lock to prevent race conditions
+            $freshUser = \App\Models\User::where('id', $user->id)->lockForUpdate()->first();
             $freshUser->saldo -= $harga_jual;
             $freshUser->save();
         });
@@ -478,6 +494,22 @@ class DigiflazController extends Controller
         ]);
     }
 
+    // Cek apakah ada transaksi serupa yang masih dalam proses (untuk mencegah double spending)
+    $recentTransaction = $this->model_transaction->checkRecentTransaction(
+        $request->customer_no,
+        $request->sku,
+        $user->id
+    );
+
+    if ($recentTransaction) {
+        return new ApiResponseResource([
+            'status'  => 'error',
+            'ref_id'  => $payment_ref_id,
+            'message' => 'Transaksi untuk nomor dan produk ini masih dalam proses. Mohon tunggu hingga selesai.',
+            'data'    => null,
+        ]);
+    }
+
     // Find the pasca transaction by sku and customer_no (for internal inquiries)
     $pascaTransaction = \App\Models\PascaTransaction::where('sku_code', $request->sku)
                                                      ->where('customer_no', $request->customer_no)
@@ -590,8 +622,8 @@ class DigiflazController extends Controller
     // =============== LANJUT DIGIFLAZZ (KALAU SALDO CUKUP) ===============
     // Potong saldo terlebih dahulu sebelum melakukan pembayaran
     DB::transaction(function () use ($user, $harga_jual) {
-        // Reload user to ensure we have a fresh model instance
-        $freshUser = \App\Models\User::findOrFail($user->id);
+        // Reload user with lock to prevent race conditions
+        $freshUser = \App\Models\User::where('id', $user->id)->lockForUpdate()->first();
         $freshUser->saldo -= $harga_jual;
         $freshUser->save();
     });
@@ -649,6 +681,16 @@ class DigiflazController extends Controller
                 $user->id,
                 $harga_jual
             );
+
+            // If the payment status is failed, refund the balance
+            if ($paymentStatus === 'failed') {
+                DB::transaction(function () use ($user, $harga_jual) {
+                    // Reload user with lock to prevent race conditions
+                    $freshUser = \App\Models\User::where('id', $user->id)->lockForUpdate()->first();
+                    $freshUser->saldo += $harga_jual;
+                    $freshUser->save();
+                });
+            }
         } else {
             // If API response is empty, update the transaction status to failed
             $pascaTransaction->update([
@@ -675,8 +717,8 @@ class DigiflazController extends Controller
 
         // If there's an exception during API call, refund the balance
         DB::transaction(function () use ($user, $harga_jual) {
-            // Reload user to ensure we have a fresh model instance
-            $freshUser = \App\Models\User::findOrFail($user->id);
+            // Reload user with lock to prevent race conditions
+            $freshUser = \App\Models\User::where('id', $user->id)->lockForUpdate()->first();
             $freshUser->saldo += $harga_jual;
             $freshUser->save();
         });
