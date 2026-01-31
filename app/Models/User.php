@@ -21,6 +21,7 @@ class User extends Authenticatable
         'name',
         'email',
         'roles_id',
+        'saldo',
         'password',
         'fcm_token',
     ];
@@ -75,5 +76,13 @@ class User extends Authenticatable
     public function pascaTransactions()
     {
         return $this->hasMany(\App\Models\PascaTransaction::class, 'user_id');
+    }
+
+    /**
+     * Get the deposits for the user.
+     */
+    public function deposits()
+    {
+        return $this->hasMany(\App\Models\Deposit::class, 'user_id');
     }
 }

@@ -53,6 +53,119 @@ class ProfileController extends Controller
     }
 
     /**
+     * Get user balance
+     */
+    public function balance(Request $request)
+    {
+        $user = $request->user(); // Sanctum auto detect
+
+        if (!$user) {
+            return new ApiResponseResource([
+                'status' => false,
+                'message' => 'Unauthenticated.',
+                'data' => null,
+            ], 401);
+        }
+
+        return new ApiResponseResource([
+            'status' => true,
+            'message' => 'Balance retrieved successfully.',
+            'data' => [
+                'balance' => $user->saldo,
+            ]
+        ]);
+    }
+
+    /**
+     * Deposit balance to user wallet using Xendit Invoice
+     */
+    public function deposit(Request $request)
+    {
+        $user = $request->user(); // Sanctum auto detect
+
+        if (!$user) {
+            return new ApiResponseResource([
+                'status' => false,
+                'message' => 'Unauthenticated.',
+                'data' => null,
+            ], 401);
+        }
+
+        $request->validate([
+            'amount' => 'required|numeric|min:1000', // Minimum deposit amount
+        ]);
+
+        $amount = $request->input('amount');
+        $externalId = 'deposit_' . time() . '_' . $user->id;
+
+        try {
+            // Initialize Xendit client with API key from environment
+            $xenditApiKey = env('XENDIT_API_KEY');
+            if (!$xenditApiKey) {
+                return new ApiResponseResource([
+                    'status' => false,
+                    'message' => 'Xendit API key not configured.',
+                    'data' => null,
+                ], 500);
+            }
+
+            // Create invoice using Xendit API
+            $client = new \GuzzleHttp\Client();
+            $response = $client->request('POST', 'https://api.xendit.co/v2/invoices', [
+                'headers' => [
+                    'Authorization' => 'Basic ' . base64_encode($xenditApiKey . ':'),
+                    'Content-Type' => 'application/json',
+                ],
+                'json' => [
+                    'external_id' => $externalId,
+                    'amount' => $amount,
+                    'description' => 'Deposit to ' . $user->name . '\'s wallet',
+                    'invoice_duration' => 86400, // 24 hours in seconds
+                    'success_redirect_url' => env('APP_URL', 'https://aeb871443259.ngrok-free.app') . '/deposit/success',
+                    'failure_redirect_url' => env('APP_URL', 'https://aeb871443259.ngrok-free.app') . '/deposit/failed',
+                    'currency' => 'IDR',
+                    'should_send_email' => false
+                    // Removing payment_methods to use Xendit's default available payment methods
+                ]
+            ]);
+
+            $invoiceData = json_decode($response->getBody(), true);
+
+            // Create deposit record
+            \App\Models\Deposit::create([
+                'user_id' => $user->id,
+                'external_id' => $externalId,
+                'invoice_id' => $invoiceData['id'],
+                'amount' => $amount,
+                'status' => $invoiceData['status'],
+                'payment_method' => 'xendit_invoice',
+                'xendit_response' => $invoiceData,
+            ]);
+
+            return new ApiResponseResource([
+                'status' => true,
+                'message' => 'Deposit invoice created successfully.',
+                'data' => [
+                    'invoice_id' => $invoiceData['id'],
+                    'external_id' => $externalId,
+                    'amount' => $amount,
+                    'payment_url' => $invoiceData['invoice_url'],
+                    'expiry_date' => $invoiceData['expiry_date'],
+                    'status' => $invoiceData['status'],
+                    // Include payment methods if available in the response
+                    'available_banks' => $invoiceData['available_banks'] ?? [],
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return new ApiResponseResource([
+                'status' => false,
+                'message' => 'Failed to create deposit invoice: ' . $e->getMessage(),
+                'data' => null,
+            ], 500);
+        }
+    }
+
+    /**
  * Ambil transaksi user (termasuk transaksi pasca bayar dan permintaan pembayaran)
  */
 public function transactions(Request $request)

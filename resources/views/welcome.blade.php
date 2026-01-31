@@ -815,7 +815,6 @@ footer {
                 </div>
 
                 <div class="store-btn">
-                    <span class="material-symbols-outlined store-icon">play_store</span>
                     <div>
                         <p class="store-small">Get it on</p>
                         <p class="store-big">Google Play</p>

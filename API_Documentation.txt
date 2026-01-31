@@ -379,4 +379,83 @@ All endpoints except login/register require authentication using Sanctum tokens.
     "created_at": "2023-01-01T10:00:00.000000Z"
   }
 }
-`````
+````` 
+## User Deposit Operations
+### POST /api/user/deposit
+**Description:** Create a deposit invoice using Xendit
+
+**Headers:**
+- Authorization: Bearer {token}
+- Content-Type: application/json
+
+**Request:**
+```json
+{
+  "amount": 50000
+}
+```
+
+**Response:**
+```json
+{
+  "status": true,
+  "message": "Deposit invoice created successfully.",
+  "data": {
+    "invoice_id": "inv-xxx",
+    "external_id": "deposit_1234567890_1",
+    "amount": 50000,
+    "payment_url": "https://checkout.xendit.co/web/xxx",
+    "expiry_date": "2023-01-02T10:00:00.000Z",
+    "status": "PENDING"
+  }
+}
+```
+
+---
+
+### POST /api/user/balance
+**Description:** Get user wallet balance
+
+**Headers:**
+- Authorization: Bearer {token}
+- Content-Type: application/json
+
+**Response:**
+```json
+{
+  "status": true,
+  "message": "Balance retrieved successfully.",
+  "data": {
+    "balance": 50000
+  }
+}
+```
+
+---
+
+### POST /api/xendit/webhook
+**Description:** Webhook endpoint for Xendit invoice callbacks (called by Xendit)
+
+**Expected Headers:**
+- X-Xendit-Signature: signature_hash
+- Content-Type: application/json
+
+**Payload:**
+```json
+{
+  "event": "invoice.paid",
+  "data": {
+    "id": "inv-xxx",
+    "external_id": "deposit_1234567890_1",
+    "amount": 50000,
+    "status": "PAID"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "status": "received"
+}
+```

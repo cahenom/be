@@ -49,9 +49,11 @@ class PaymentRequest extends Model
     {
         return [
             'pending',
-            'success',      // previously 'approved' or 'completed'
-            'failed',       // previously 'rejected' or 'failed_notification'
+            'approved',
+            'rejected',
             'cancelled',
+            'completed',
+            'failed',       // previously 'rejected' or 'failed_notification'
             'pending_with_notification_error'
         ];
     }

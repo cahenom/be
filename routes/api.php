@@ -3,11 +3,11 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\DigiflazController;
+use App\Http\Controllers\Api\XenditController;
 use App\Http\Controllers\Api\MerchantController;
 use App\Http\Controllers\Api\PaymentRequestController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\FirebaseController;
-use App\Http\Controllers\TestFirebaseController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 /*
@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Route;
 
 
 Route::post('/digiflazz/webhook', [\App\Http\Controllers\Api\DigiflazzWebhookController::class, 'handle']);
+Route::post('/xendit/webhook', [\App\Http\Controllers\Api\XenditWebhookController::class, 'handle']);
 
 Route::post(
     '/auth/login',
@@ -41,7 +42,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::controller(ProfileController::class)->prefix('user')->group(function () {
         Route::post('/profile', 'profile');
+        Route::post('/deposit', 'deposit');
         Route::post('/transaksi', 'transactions');
+        Route::post('/balance', 'balance');
     });
 
     Route::controller(DigiflazController::class)->prefix('order')->group(function () {
@@ -68,13 +71,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
     });
 
     // Firebase Cloud Messaging routes
-    Route::post('/fcm/token', [FirebaseController::class, 'saveToken']); 
-    
+    Route::post('/fcm/token', [FirebaseController::class, 'saveToken']);
+
     // Payment request operations for users (require authentication)
     Route::get('/payment-requests/pending', [PaymentRequestController::class, 'getUserPendingRequests']); // Get pending payment requests for user
     Route::get('/payment-requests/{id}', [PaymentRequestController::class, 'showPaymentRequest']); // Get specific payment request
     Route::post('/payment-requests/{id}/approve', [PaymentRequestController::class, 'approvePaymentRequest']); // Approve a payment request
     Route::post('/payment-requests/{id}/reject', [PaymentRequestController::class, 'rejectPaymentRequest']); // Reject a payment request
+
 });
 
 Route::controller(MerchantController::class)->prefix('merchant')->group(function () {
