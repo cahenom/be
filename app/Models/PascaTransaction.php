@@ -43,6 +43,14 @@ class PascaTransaction extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    /**
+     * Get the product information for the transaction.
+     */
+    public function product()
+    {
+        return $this->belongsTo(ProductPasca::class, 'sku_code', 'product_sku');
+    }
+
     public function scopeByRefId($query, $refId)
     {
         return $query->where('ref_id', $refId);

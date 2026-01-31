@@ -1,800 +1,1027 @@
-<!doctype html>
+<!DOCTYPE html>
+<html lang="id" class="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PUNYAKIOS - Solusi Pembayaran Digital</title>
 
-<html class="light" lang="en">
-    <head>
-        <meta charset="utf-8" />
-        <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-        <title>Docs Api</title>
-        <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-        <link
-            href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&amp;display=swap"
-            rel="stylesheet"
-        />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
-            rel="stylesheet"
-        />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
-            rel="stylesheet"
-        />
-        <script id="tailwind-config">
-            tailwind.config = {
-                darkMode: "class",
-                theme: {
-                    extend: {
-                        colors: {
-                            primary: "#137fec",
-                            "background-light": "#f6f7f8",
-                            "background-dark": "#101922",
-                        },
-                        fontFamily: {
-                            display: ["Manrope", "sans-serif"],
-                        },
-                        borderRadius: {
-                            DEFAULT: "0.25rem",
-                            lg: "0.5rem",
-                            xl: "0.75rem",
-                            full: "9999px",
-                        },
-                    },
-                },
-            };
-        </script>
-        <style>
-            body {
-                font-family: "Manrope", sans-serif;
-            }
-            .material-symbols-outlined {
-                font-variation-settings:
-                    "FILL" 0,
-                    "wght" 400,
-                    "GRAD" 0,
-                    "opsz" 24;
-            }
-        </style>
-    </head>
-    <body
-        class="bg-background-light dark:bg-background-dark text-[#111418] dark:text-white transition-colors duration-300"
-    >
-        <!-- TopNavBar -->
-        <header
-            class="sticky top-0 z-50 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md border-b border-solid border-[#f0f2f4] dark:border-[#2a343d]"
-        >
-            <div
-                class="max-w-[1280px] mx-auto flex items-center justify-between px-10 py-3"
-            >
-                <div class="flex items-center gap-4 text-primary">
-                    <div class="size-6">
-                        <span
-                            class="material-symbols-outlined text-3xl font-bold"
-                            >bolt</span
-                        >
+<!-- Font & Icons -->
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@200;300;400;500;600;700&display=swap" rel="stylesheet"/>
+
+<style>
+
+/* ========================= */
+/* VARIABLES */
+/* ========================= */
+:root {
+    --primary: #0d7cf2;
+    --dark-bg: #101922;
+    --light-bg: #f5f7f8;
+    --text-dark: #0d141c;
+    --text-light: #f8fafc;
+
+    --radius: 14px;
+    --transition: 0.25s ease;
+}
+
+/* DARK MODE */
+.dark body {
+    background: var(--dark-bg);
+    color: var(--text-light);
+}
+
+.dark .header {
+    background: rgba(16, 25, 34, 0.8);
+    border-color: #1e293b;
+}
+
+.dark .nav-links a {
+    color: #e2e8f0;
+}
+
+.dark .hero-desc,
+.dark .stats-label,
+.dark .features-desc,
+.dark footer a,
+.dark .footer-desc {
+    color: #94a3b8;
+}
+
+.dark .feature-card {
+    background: #0f1822;
+    border-color: #1f2937;
+}
+
+.dark .phone-screen {
+    background: #0f1822;
+    color: #e2e8f0;
+}
+
+/* ========================= */
+/* GLOBAL */
+/* ========================= */
+body {
+    margin: 0;
+    font-family: "Plus Jakarta Sans", sans-serif;
+    background: var(--light-bg);
+    color: var(--text-dark);
+    transition: background var(--transition), color var(--transition);
+}
+
+.container {
+    max-width: 1280px;
+    padding: 0 24px;
+    margin: auto;
+}
+
+a {
+    text-decoration: none;
+}
+
+/* ========================= */
+/* HEADER */
+/* ========================= */
+.header {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    height: 72px;
+    background: rgba(245,247,248,0.85);
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid #d6dee6;
+    backdrop-filter: blur(12px);
+    z-index: 50;
+}
+
+.nav-wrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.brand-icon {
+    width: 36px;
+    height: 36px;
+    background: var(--primary);
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 12px;
+}
+
+.brand-title {
+    font-size: 20px;
+    font-weight: 800;
+}
+
+.nav-links {
+    display: flex;
+    gap: 32px;
+}
+
+.nav-links a {
+    color: var(--text-dark);
+    font-size: 14px;
+    font-weight: 600;
+    transition: var(--transition);
+}
+
+.nav-links a:hover {
+    color: var(--primary);
+}
+
+.nav-actions {
+    display: flex;
+    gap: 16px;
+}
+
+.btn-text {
+    background: none;
+    border: none;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.btn-primary {
+    background: var(--primary);
+    border: none;
+    border-radius: 12px;
+    padding: 10px 18px;
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-primary:hover {
+    background: #0b6dd7;
+}
+
+
+/* ========================= */
+/* HERO */
+/* ========================= */
+
+.hero {
+    padding-top: 140px;
+    padding-bottom: 100px;
+}
+
+.hero-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+}
+
+.hero-badge {
+    background: rgba(13,124,242,0.1);
+    color: var(--primary);
+    padding: 6px 16px;
+    border-radius: 999px;
+    display: inline-flex;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.hero-title {
+    margin-top: 12px;
+    font-size: 56px;
+    font-weight: 900;
+    line-height: 1.1;
+}
+
+.hero-desc {
+    max-width: 520px;
+    font-size: 17px;
+    color: #64748b;
+    line-height: 1.6;
+}
+
+.text-primary {
+    color: var(--primary);
+}
+
+/* STORE BUTTONS */
+.download-buttons {
+    display: flex;
+    gap: 18px;
+    margin-top: 24px;
+}
+
+.store-btn {
+    background: #0d141c;
+    color: white;
+    padding: 14px 22px;
+    border-radius: 16px;
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    cursor: pointer;
+    transition: transform var(--transition);
+}
+
+.dark .store-btn {
+    background: #1e293b;
+}
+
+.store-btn:hover {
+    transform: scale(1.05);
+}
+
+.store-icon {
+    font-size: 34px;
+}
+
+.store-small {
+    font-size: 10px;
+    opacity: 0.8;
+    margin: 0;
+}
+
+.store-big {
+    font-size: 18px;
+    margin: 0;
+    font-weight: 700;
+}
+
+/* ========================= */
+/* HERO STATS */
+/* ========================= */
+.stats {
+    display: flex;
+    gap: 48px;
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid #d4dce4;
+}
+
+.dark .stats {
+    border-color: #1e293b;
+}
+
+.stats-number {
+    color: var(--primary);
+    font-size: 28px;
+    font-weight: 900;
+}
+
+.stats-label {
+    color: #64748b;
+    font-size: 14px;
+}
+
+/* ========================= */
+/* PHONE MOCKUP */
+/* ========================= */
+.hero-right {
+    position: relative;
+    display: flex;
+    justify-content: center;
+}
+
+.phone-mockup {
+    width: 300px;
+    height: 600px;
+    background: #0d141c;
+    border-radius: 40px;
+    padding: 12px;
+    border: 6px solid #222;
+    position: relative;
+    box-shadow: 0 40px 80px -20px rgba(0,0,0,0.5);
+}
+
+.phone-top {
+    width: 120px;
+    height: 26px;
+    background: #0d141c;
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
+    position: absolute;
+    left: 50%;
+    top: 0;
+    transform: translateX(-50%);
+}
+
+.phone-screen {
+    background: white;
+    width: 100%;
+    height: 100%;
+    border-radius: 32px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.dark .phone-screen {
+    background: #0f1822;
+}
+
+.app-topbar {
+    background: var(--primary);
+    color: white;
+    padding: 24px;
+    padding-top: 40px;
+    display: flex;
+    justify-content: space-between;
+    border-bottom-left-radius: 26px;
+    border-bottom-right-radius: 26px;
+}
+
+.saldo-label {
+    opacity: 0.8;
+    font-size: 12px;
+    margin: 0;
+}
+
+.saldo-value {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+}
+
+.saldo-add {
+    background: rgba(255,255,255,0.2);
+    padding: 6px;
+    border-radius: 12px;
+}
+
+.app-content {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+
+.service-grid {
+    display: grid;
+    grid-template-columns: repeat(4,1fr);
+    gap: 16px;
+    text-align: center;
+}
+
+.service-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 14px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.blue { background: #dbeafe; color: #2563eb; }
+.green { background: #dcfce7; color: #16a34a; }
+.orange { background: #ffedd5; color: #ea580c; }
+.purple { background: #f3e8ff; color: #9333ea; }
+
+.service-label {
+    font-size: 10px;
+    font-weight: 700;
+    margin-top: 4px;
+}
+
+.last-title {
+    text-transform: uppercase;
+    font-size: 12px;
+    color: #94a3b8;
+    font-weight: 700;
+}
+
+.last-item {
+    display: flex;
+    justify-content: space-between;
+    background: #f8fafc;
+    padding: 12px;
+    border-radius: 14px;
+}
+
+.dark .last-item {
+    background: #1e293b;
+}
+
+.last-left {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.last-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.last-icon.primary {
+    background: rgba(13,124,242,0.15);
+    color: var(--primary);
+}
+
+.last-icon.greenbg {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.last-name {
+    font-size: 11px;
+    font-weight: 800;
+    margin: 0;
+}
+
+.last-date {
+    font-size: 9px;
+    color: #64748b;
+    margin: 0;
+}
+
+.last-out {
+    color: #ef4444;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.last-in {
+    color: #16a34a;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+/* Floating badges */
+.glass {
+    background: rgba(255,255,255,0.7);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.4);
+}
+
+.dark .glass {
+    background: rgba(16, 25, 34, 0.65);
+}
+
+.badge-right,
+.badge-left {
+    position: absolute;
+    padding: 14px;
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: 180px;
+}
+
+.badge-right {
+    right: -120px;
+    top: 25%;
+}
+
+.badge-left {
+    left: -140px;
+    bottom: 25%;
+}
+
+.badge-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+.badge-icon.green {
+    background: #22c55e;
+}
+
+.badge-icon.primary {
+    background: var(--primary);
+}
+
+.badge-title {
+    font-size: 11px;
+    font-weight: 800;
+    margin: 0;
+}
+
+.badge-sub {
+    font-size: 10px;
+    color: #64748b;
+    margin: 0;
+}
+
+/* ========================= */
+/* FEATURES */
+/* ========================= */
+
+.features {
+    padding: 100px 0;
+}
+
+.features-header {
+    max-width: 700px;
+}
+
+.features-title {
+    font-size: 36px;
+    font-weight: 800;
+    margin: 0;
+}
+
+.features-desc {
+    color: #64748b;
+    font-size: 17px;
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(3,1fr);
+    gap: 32px;
+    margin-top: 48px;
+}
+
+.feature-card {
+    padding: 32px;
+    border-radius: 20px;
+    border: 1px solid #d6dee6;
+    background: var(--light-bg);
+    transition: var(--transition);
+}
+
+.feature-card:hover {
+    border-color: var(--primary);
+}
+
+.feature-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    background: rgba(13,124,242,0.1);
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+    font-size: 26px;
+}
+
+.feature-card h3 {
+    margin: 0 0 10px;
+    font-size: 20px;
+}
+
+.feature-card p {
+    color: #64748b;
+    margin: 0;
+}
+
+/* ========================= */
+/* FOOTER */
+/* ========================= */
+
+footer {
+    border-top: 1px solid #d6dee6;
+    padding: 60px 0;
+}
+
+.footer-grid {
+    display: flex;
+    justify-content: space-between;
+    gap: 48px;
+}
+
+.footer-desc {
+    width: 300px;
+    font-size: 14px;
+    color: #64748b;
+}
+
+.footer-columns {
+    display: flex;
+    gap: 48px;
+}
+
+.footer-col {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.footer-title {
+    font-weight: 800;
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.footer-col a {
+    color: #64748b;
+    font-size: 14px;
+    transition: var(--transition);
+}
+
+.footer-col a:hover {
+    color: var(--primary);
+}
+
+.footer-bottom {
+    border-top: 1px solid #d6dee6;
+    margin-top: 40px;
+    padding-top: 16px;
+    display: flex;
+    justify-content: space-between;
+    color: #64748b;
+}
+
+.footer-icons {
+    display: flex;
+    gap: 24px;
+}
+
+.footer-icons .material-symbols-outlined {
+    color: #94a3b8;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.footer-icons .material-symbols-outlined:hover {
+    color: var(--primary);
+}
+
+/* ========================= */
+/* RESPONSIVE */
+/* ========================= */
+
+@media (max-width: 1024px) {
+    .hero-grid {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+
+    .download-buttons {
+        justify-content: center;
+    }
+
+    .stats {
+        justify-content: center;
+    }
+
+    .hero-right {
+        display: flex;
+        justify-content: center;
+    }
+
+    .badge-right {
+        right: -80px;
+    }
+    .badge-left {
+        left: -100px;
+    }
+}
+
+@media (max-width: 768px) {
+    .nav-links {
+        display: none;
+    }
+
+    .features-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .footer-grid {
+        flex-direction: column;
+    }
+
+    .footer-columns {
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .badge-right {
+        display: none;
+    }
+    .badge-left {
+        display: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .phone-mockup {
+        transform: scale(0.85);
+    }
+}
+
+/* Media query untuk menangani tabrakan tombol di layar sedang */
+@media (max-width: 992px) {
+    .nav-actions {
+        gap: 8px; /* Kurangi jarak antar tombol */
+    }
+
+    .btn-text {
+        font-size: 12px; /* Kurangi ukuran font untuk menghemat ruang */
+        padding: 8px; /* Kurangi padding */
+    }
+
+    .btn-primary {
+        padding: 8px 12px; /* Kurangi padding untuk menghemat ruang */
+        font-size: 12px; /* Kurangi ukuran font */
+    }
+}
+
+@media (max-width: 768px) {
+    .nav-actions {
+        gap: 6px; /* Lebih kecil lagi di layar kecil */
+    }
+
+    .btn-text {
+        font-size: 11px;
+        padding: 6px;
+    }
+
+    .btn-primary {
+        padding: 6px 10px;
+        font-size: 11px;
+    }
+}
+
+</style>
+
+</head>
+
+<body>
+
+<header class="header">
+    <div class="container nav-wrapper">
+        <div class="brand">
+            <div class="brand-icon">
+                <span class="material-symbols-outlined">payments</span>
+            </div>
+            <span class="brand-title">PUNYAKIOS</span>
+        </div>
+
+        <nav class="nav-links">
+            <a href="#">Beranda</a>
+            <a href="#">Layanan</a>
+            <a href="#">Harga</a>
+            <a href="#">Bantuan</a>
+        </nav>
+
+        <div class="nav-actions">
+            <button class="btn-text">Masuk</button>
+            <button class="btn-primary">Daftar Sekarang</button>
+        </div>
+    </div>
+</header>
+
+<main>
+
+<!-- ================= HERO ================= -->
+<section class="hero container">
+    <div class="hero-grid">
+
+        <!-- Left -->
+        <div class="hero-left">
+            <div class="hero-badge">
+                <span class="material-symbols-outlined">verified</span>
+                Pilihan No. 1 Masyarakat Indonesia
+            </div>
+
+            <h1 class="hero-title">
+                Solusi Pembayaran <span class="text-primary">Digital</span> Terlengkap
+            </h1>
+
+            <p class="hero-desc">
+                Kelola tagihan bulanan, isi pulsa, hingga top-up e-wallet hanya dalam satu aplikasi. Aman, mudah, dan tersedia 24/7.
+            </p>
+
+            <div class="download-buttons">
+                <div class="store-btn">
+                    <span class="material-symbols-outlined store-icon">ios</span>
+                    <div>
+                        <p class="store-small">Download on the</p>
+                        <p class="store-big">App Store</p>
                     </div>
-                    <h2
-                        class="text-[#111418] dark:text-white text-xl font-extrabold leading-tight tracking-[-0.015em]"
-                    >
-                        KiosPay API
-                    </h2>
                 </div>
-                <div class="flex flex-1 justify-end gap-8 items-center">
-                    <nav class="hidden md:flex items-center gap-9">
-                        <a
-                            class="text-[#111418] dark:text-gray-300 text-sm font-semibold hover:text-primary transition-colors"
-                            href="#"
-                            >Features</a
-                        >
-                        <a
-                            class="text-[#111418] dark:text-gray-300 text-sm font-semibold hover:text-primary transition-colors"
-                            href="/docs/api"
-                            >Documentation</a
-                        >
-                        <a
-                            class="text-[#111418] dark:text-gray-300 text-sm font-semibold hover:text-primary transition-colors"
-                            href="#"
-                            >Pricing</a
-                        >
-                        <a
-                            class="text-[#111418] dark:text-gray-300 text-sm font-semibold hover:text-primary transition-colors"
-                            href="#"
-                            >About</a
-                        >
-                    </nav>
-                    <div class="flex gap-3">
-                        <button
-                            class="flex min-w-[84px] cursor-pointer items-center justify-center rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-all"
-                        >
-                            Get Started
-                        </button>
-                        <button
-                            class="flex min-w-[84px] cursor-pointer items-center justify-center rounded-lg h-10 px-4 bg-[#f0f2f4] dark:bg-[#2a343d] text-[#111418] dark:text-white text-sm font-bold hover:bg-[#e2e5e9] dark:hover:bg-[#36434e] transition-all"
-                        >
-                            Login
-                        </button>
+
+                <div class="store-btn">
+                    <span class="material-symbols-outlined store-icon">play_store</span>
+                    <div>
+                        <p class="store-small">Get it on</p>
+                        <p class="store-big">Google Play</p>
                     </div>
                 </div>
             </div>
-        </header>
-        <main class="max-w-[1280px] mx-auto px-4 sm:px-10 lg:px-20">
-            <!-- HeroSection -->
-            <section class="py-12 md:py-20 @container">
-                <div class="flex flex-col gap-10 lg:flex-row items-center">
-                    <div class="flex flex-col gap-6 lg:w-1/2">
-                        <div class="flex flex-col gap-4 text-left">
-                            <span
-                                class="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold w-fit uppercase tracking-wider"
-                                >New V3.0 is out</span
-                            >
-                            <h1
-                                class="text-[#111418] dark:text-white text-4xl font-extrabold leading-tight tracking-[-0.033em] md:text-6xl"
-                            >
-                                Empower Your Business with Our Robust PPOB API
-                            </h1>
-                            <p
-                                class="text-[#4f5b66] dark:text-gray-400 text-lg font-normal leading-relaxed max-w-[540px]"
-                            >
-                                Seamless integration for airtime, data,
-                                electricity, and Kios payments. One API to
-                                access all Indonesian Kiosers. Fast, secure, and
-                                built for scale.
-                            </p>
+
+            <div class="stats">
+                <div>
+                    <p class="stats-number">1M+</p>
+                    <p class="stats-label">Pengguna Aktif</p>
+                </div>
+                <div>
+                    <p class="stats-number">500K+</p>
+                    <p class="stats-label">Transaksi Harian</p>
+                </div>
+                <div>
+                    <p class="stats-number">10K+</p>
+                    <p class="stats-label">Mitra Terdaftar</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right / Phone Mockup -->
+        <div class="hero-right">
+
+            <div class="phone-mockup">
+
+                <div class="phone-top"></div>
+
+                <div class="phone-screen">
+
+                    <!-- Top Bar -->
+                    <div class="app-topbar">
+                        <div>
+                            <p class="saldo-label">Saldo Anda</p>
+                            <p class="saldo-value">Rp 2.450.000</p>
                         </div>
-                        <div class="flex flex-wrap gap-4 pt-4">
-                            <button
-                                class="flex min-w-[160px] cursor-pointer items-center justify-center rounded-lg h-14 px-6 bg-primary text-white text-base font-bold shadow-lg shadow-primary/20 hover:scale-105 transition-transform"
-                            >
-                                Get Started Free
-                            </button>
-                            <a 
-                                href="/docs/api"
-                                class="flex min-w-[160px] cursor-pointer items-center justify-center rounded-lg h-14 px-6 bg-white dark:bg-[#1a2632] border border-[#dbe0e6] dark:border-[#2a343d] text-[#111418] dark:text-white text-base font-bold hover:bg-gray-50 dark:hover:bg-[#233140] transition-colors"
-                            >
-                                View API Docs
-                            </a>
-                        </div>
-                        <div class="flex items-center gap-2 mt-4">
-                            <div class="flex -space-x-2">
-                                <img
-                                    class="size-8 rounded-full border-2 border-white dark:border-background-dark bg-gray-200"
-                                    data-alt="User avatar 1"
-                                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuBdRhHkBythle7d6Y1O2ITaOxQpDJb3-owkAOqlZwBqAFURTC5KTwrMuJ4pWRrI13Ckx_s7kd_DCKwUZ-pFHQWoBfVduTpPylba9pbVRdy-MyWA-RRODxwU1-mNLN-wkIeZ1BV4Rs2SRH1Qi_RKMgCPw5fkybt_SRZvtIvhBcAfAxkACvpZ4_YVZQptfhS752D5KxwmcbUOA61fXN67ZLcHxX_4jc2f-at2zeAQliY5H90h9SWnKGW97LwdsCC9FCZA68soIrFUW_RP"
-                                />
-                                <img
-                                    class="size-8 rounded-full border-2 border-white dark:border-background-dark bg-gray-200"
-                                    data-alt="User avatar 2"
-                                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuDrF1Z9xFL6N8DNOE3W27Bmq0ObkL3zN7BgYa3iUifFlFkdqnGYEQiibIyXg9Ulhca_oq7kK8jaNtIdYo1Bh5mxYn9Dww_JeFgPDIbqvAdacybJd2lnAH-nFgwbewnnUcVuB4P_95eIX3HsHANViR2W13zolwuK7KdLFdV665gXswdXCDU7HtCqvK34mQMtvhUX9sT5ZqqmS8lWvnPdwlKGlqqzBVa2xmY-SNbuTZd5ndp3bpTblwsUfbrVbWTPxwlCzv7KpSWJfp55"
-                                />
-                                <img
-                                    class="size-8 rounded-full border-2 border-white dark:border-background-dark bg-gray-200"
-                                    data-alt="User avatar 3"
-                                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuDWXCkmFYyK-KVhwLRE3Ks5nMzCsbJLyr8WJwy4Ah0-AHBPU1MklHiKyHDxmg8K1srhIgqnkkXsBux4zyu_pbtGE9Eb3bdWfPeX8afJ4-gOBm3F4MxBX2t-xfsY3awYjzhx_cHrASbiOozGZFo-IfpyY92crcE8AxSlZBWg80SmcBQEcVB5Lz-19GbHQH_Cv672M3x1ue8Gis_R9FmOfztyM6cYeeLnNZdjXr_9ixy0BBJuYrIBy7LNlTgfV-jEFnjj4sVt9YWynZk4"
-                                />
-                            </div>
-                            <p
-                                class="text-sm text-[#4f5b66] dark:text-gray-400 font-medium"
-                            >
-                                Joined by 12,000+ developers globally
-                            </p>
+                        <div class="saldo-add">
+                            <span class="material-symbols-outlined">add_circle</span>
                         </div>
                     </div>
-                    <div class="w-full lg:w-1/2 flex justify-center">
-                        <div
-                            class="relative w-full max-w-[500px] aspect-square rounded-2xl bg-gradient-to-br from-primary to-[#0e5db3] p-6 shadow-2xl overflow-hidden group"
-                        >
-                            <!-- Abstract Code Graphic -->
-                            <div
-                                class="absolute inset-0 opacity-20 pointer-events-none"
-                                style="
-                                    background-image: radial-gradient(
-                                        circle at 2px 2px,
-                                        white 1px,
-                                        transparent 0
-                                    );
-                                    background-size: 24px 24px;
-                                "
-                            ></div>
-                            <div
-                                class="relative h-full bg-[#0d1117] rounded-xl p-5 font-mono text-sm overflow-hidden border border-white/10"
-                            >
-                                <div class="flex gap-2 mb-4">
-                                    <div
-                                        class="size-3 rounded-full bg-red-500"
-                                    ></div>
-                                    <div
-                                        class="size-3 rounded-full bg-yellow-500"
-                                    ></div>
-                                    <div
-                                        class="size-3 rounded-full bg-green-500"
-                                    ></div>
-                                </div>
-                                <div class="text-[#c9d1d9] space-y-2">
-                                    <p>
-                                        <span class="text-[#ff7b72]">POST</span>
-                                        /api/v3/transactions
-                                        <span class="text-[#79c0ff]">{</span>
-                                    </p>
-                                    <p class="pl-4">
-                                        <span class="text-[#7ee787]"
-                                            >"service"</span
-                                        >:
-                                        <span class="text-[#a5d6ff]"
-                                            >"PLN_POSTPAID"</span
-                                        >,
-                                    </p>
-                                    <p class="pl-4">
-                                        <span class="text-[#7ee787]"
-                                            >"customer_id"</span
-                                        >:
-                                        <span class="text-[#a5d6ff]"
-                                            >"530012345678"</span
-                                        >,
-                                    </p>
-                                    <p class="pl-4">
-                                        <span class="text-[#7ee787]"
-                                            >"amount"</span
-                                        >:
-                                        <span class="text-[#a5d6ff]"
-                                            >150000</span
-                                        >,
-                                    </p>
-                                    <p class="pl-4">
-                                        <span class="text-[#7ee787]"
-                                            >"callback_url"</span
-                                        >:
-                                        <span class="text-[#a5d6ff]"
-                                            >"https://your.app/webhook"</span
-                                        >
-                                    </p>
-                                    <p><span class="text-[#79c0ff]">}</span></p>
-                                    <div
-                                        class="pt-4 border-t border-white/10 mt-4"
-                                    >
-                                        <p class="text-gray-500">
-                                            // Response 200 OK
-                                        </p>
-                                        <p>
-                                            <span class="text-[#79c0ff]"
-                                                >{</span
-                                            >
-                                        </p>
-                                        <p class="pl-4">
-                                            <span class="text-[#7ee787]"
-                                                >"status"</span
-                                            >:
-                                            <span class="text-[#a5d6ff]"
-                                                >"SUCCESS"</span
-                                            >,
-                                        </p>
-                                        <p class="pl-4">
-                                            <span class="text-[#7ee787]"
-                                                >"ref_id"</span
-                                            >:
-                                            <span class="text-[#a5d6ff]"
-                                                >"TX-99120"</span
-                                            >
-                                        </p>
-                                        <p>
-                                            <span class="text-[#79c0ff]"
-                                                >}</span
-                                            >
-                                        </p>
-                                    </div>
-                                </div>
+
+                    <!-- App Content -->
+                    <div class="app-content">
+
+                        <div class="service-grid">
+                            <div class="service-item">
+                                <div class="service-icon blue"><span class="material-symbols-outlined">phone_iphone</span></div>
+                                <span class="service-label">Pulsa</span>
                             </div>
-                            <!-- Floating Card -->
-                            <div
-                                class="absolute bottom-10 -right-4 bg-white dark:bg-[#1a2632] p-4 rounded-xl shadow-xl flex items-center gap-3 border border-[#f0f2f4] dark:border-[#2a343d]"
-                            >
-                                <div
-                                    class="size-10 rounded-full bg-green-100 flex items-center justify-center"
-                                >
-                                    <span
-                                        class="material-symbols-outlined text-green-600"
-                                        >check_circle</span
-                                    >
-                                </div>
+
+                            <div class="service-item">
+                                <div class="service-icon green"><span class="material-symbols-outlined">language</span></div>
+                                <span class="service-label">Data</span>
+                            </div>
+
+                            <div class="service-item">
+                                <div class="service-icon orange"><span class="material-symbols-outlined">bolt</span></div>
+                                <span class="service-label">PLN</span>
+                            </div>
+
+                            <div class="service-item">
+                                <div class="service-icon purple"><span class="material-symbols-outlined">account_balance_wallet</span></div>
+                                <span class="service-label">Wallet</span>
+                            </div>
+                        </div>
+
+                        <!-- Last Transactions -->
+                        <div class="last-title">Transaksi Terakhir</div>
+
+                        <div class="last-item">
+                            <div class="last-left">
+                                <div class="last-icon primary"><span class="material-symbols-outlined">bolt</span></div>
                                 <div>
-                                    <p
-                                        class="text-xs text-gray-500 uppercase font-bold tracking-tight"
-                                    >
-                                        System Status
-                                    </p>
-                                    <p
-                                        class="text-[#111418] dark:text-white font-bold"
-                                    >
-                                        Operational
-                                    </p>
+                                    <p class="last-name">Token Listrik</p>
+                                    <p class="last-date">22 Okt, 14:20</p>
                                 </div>
                             </div>
+                            <p class="last-out">-Rp 102.500</p>
                         </div>
+
+                        <div class="last-item">
+                            <div class="last-left">
+                                <div class="last-icon greenbg"><span class="material-symbols-outlined">account_balance_wallet</span></div>
+                                <div>
+                                    <p class="last-name">Top Up E-Wallet</p>
+                                    <p class="last-date">21 Okt, 09:15</p>
+                                </div>
+                            </div>
+                            <p class="last-in">+Rp 250.000</p>
+                        </div>
+
                     </div>
                 </div>
-            </section>
-            <!-- Stats Section -->
-            <section
-                class="py-10 border-y border-[#f0f2f4] dark:border-[#2a343d]"
-            >
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div
-                        class="flex flex-col gap-2 rounded-xl p-8 bg-white dark:bg-[#1a2632] border border-[#dbe0e6] dark:border-[#2a343d] hover:border-primary transition-colors"
-                    >
-                        <p
-                            class="text-[#4f5b66] dark:text-gray-400 text-sm font-semibold uppercase tracking-wider"
-                        >
-                            Businesses Trust Us
-                        </p>
-                        <p
-                            class="text-[#111418] dark:text-white tracking-tighter text-4xl font-extrabold"
-                        >
-                            1,500+
-                        </p>
-                        <div
-                            class="w-10 h-1 bg-primary rounded-full mt-2"
-                        ></div>
-                    </div>
-                    <div
-                        class="flex flex-col gap-2 rounded-xl p-8 bg-white dark:bg-[#1a2632] border border-[#dbe0e6] dark:border-[#2a343d] hover:border-primary transition-colors"
-                    >
-                        <p
-                            class="text-[#4f5b66] dark:text-gray-400 text-sm font-semibold uppercase tracking-wider"
-                        >
-                            Monthly Volume
-                        </p>
-                        <p
-                            class="text-[#111418] dark:text-white tracking-tighter text-4xl font-extrabold"
-                        >
-                            2.4M+
-                        </p>
-                        <div
-                            class="w-10 h-1 bg-primary rounded-full mt-2"
-                        ></div>
-                    </div>
-                    <div
-                        class="flex flex-col gap-2 rounded-xl p-8 bg-white dark:bg-[#1a2632] border border-[#dbe0e6] dark:border-[#2a343d] hover:border-primary transition-colors"
-                    >
-                        <p
-                            class="text-[#4f5b66] dark:text-gray-400 text-sm font-semibold uppercase tracking-wider"
-                        >
-                            Uptime Guarantee
-                        </p>
-                        <p
-                            class="text-[#111418] dark:text-white tracking-tighter text-4xl font-extrabold"
-                        >
-                            99.98%
-                        </p>
-                        <div
-                            class="w-10 h-1 bg-primary rounded-full mt-2"
-                        ></div>
-                    </div>
-                </div>
-            </section>
-            <!-- FeatureSection -->
-            <section class="py-20 @container" id="features">
-                <div class="flex flex-col gap-12">
-                    <div class="flex flex-col gap-4 text-center items-center">
-                        <h2
-                            class="text-[#111418] dark:text-white tracking-tight text-3xl font-extrabold md:text-5xl max-w-[800px]"
-                        >
-                            Engineered for Technical Excellence
-                        </h2>
-                        <p
-                            class="text-[#4f5b66] dark:text-gray-400 text-lg font-normal leading-relaxed max-w-[640px]"
-                        >
-                            Built by developers for developers, our
-                            infrastructure ensures reliability at every scale
-                            with enterprise-grade tooling.
-                        </p>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                        <div
-                            class="flex flex-col gap-4 rounded-xl border border-[#dbe0e6] dark:border-[#2a343d] bg-white dark:bg-[#1a2632] p-8 shadow-sm hover:shadow-xl transition-all group"
-                        >
-                            <div
-                                class="size-14 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors"
-                            >
-                                <span class="material-symbols-outlined text-3xl"
-                                    >cloud_done</span
-                                >
-                            </div>
-                            <div class="flex flex-col gap-2">
-                                <h3
-                                    class="text-[#111418] dark:text-white text-xl font-bold"
-                                >
-                                    Ultra-High Availability
-                                </h3>
-                                <p
-                                    class="text-[#617589] dark:text-gray-400 text-base font-normal leading-relaxed"
-                                >
-                                    Multi-region deployment across top tier data
-                                    centers ensures your services never go
-                                    offline.
-                                </p>
-                            </div>
-                        </div>
-                        <div
-                            class="flex flex-col gap-4 rounded-xl border border-[#dbe0e6] dark:border-[#2a343d] bg-white dark:bg-[#1a2632] p-8 shadow-sm hover:shadow-xl transition-all group"
-                        >
-                            <div
-                                class="size-14 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors"
-                            >
-                                <span class="material-symbols-outlined text-3xl"
-                                    >lock</span
-                                >
-                            </div>
-                            <div class="flex flex-col gap-2">
-                                <h3
-                                    class="text-[#111418] dark:text-white text-xl font-bold"
-                                >
-                                    Secure Transactions
-                                </h3>
-                                <p
-                                    class="text-[#617589] dark:text-gray-400 text-base font-normal leading-relaxed"
-                                >
-                                    Bank-grade encryption for every API request
-                                    with PCI-DSS level security protocols.
-                                </p>
-                            </div>
-                        </div>
-                        <div
-                            class="flex flex-col gap-4 rounded-xl border border-[#dbe0e6] dark:border-[#2a343d] bg-white dark:bg-[#1a2632] p-8 shadow-sm hover:shadow-xl transition-all group"
-                        >
-                            <div
-                                class="size-14 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors"
-                            >
-                                <span class="material-symbols-outlined text-3xl"
-                                    >terminal</span
-                                >
-                            </div>
-                            <div class="flex flex-col gap-2">
-                                <h3
-                                    class="text-[#111418] dark:text-white text-xl font-bold"
-                                >
-                                    Developer SDKs
-                                </h3>
-                                <p
-                                    class="text-[#617589] dark:text-gray-400 text-base font-normal leading-relaxed"
-                                >
-                                    Official libraries for Node.js, Python, PHP,
-                                    and Go to get you integrated in minutes.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-            <!-- Supported Services Section Header -->
-            <section class="pb-16">
-                <div
-                    class="bg-gray-50 dark:bg-[#1a2632] rounded-2xl p-10 lg:p-16 border border-[#dbe0e6] dark:border-[#2a343d]"
-                >
-                    <h2
-                        class="text-[#111418] dark:text-white text-3xl font-extrabold leading-tight tracking-tight mb-8 text-center"
-                    >
-                        Comprehensive Service Coverage
-                    </h2>
-                    <div
-                        class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-8"
-                    >
-                        <div
-                            class="flex flex-col items-center gap-3 group grayscale hover:grayscale-0 transition-all cursor-pointer"
-                        >
-                            <div
-                                class="size-16 rounded-full bg-white dark:bg-background-dark shadow-sm border border-gray-100 dark:border-gray-800 flex items-center justify-center"
-                            >
-                                <span
-                                    class="material-symbols-outlined text-primary text-3xl"
-                                    >cell_tower</span
-                                >
-                            </div>
-                            <span
-                                class="text-sm font-bold text-[#111418] dark:text-white"
-                                >Telkomsel</span
-                            >
-                        </div>
-                        <div
-                            class="flex flex-col items-center gap-3 group grayscale hover:grayscale-0 transition-all cursor-pointer"
-                        >
-                            <div
-                                class="size-16 rounded-full bg-white dark:bg-background-dark shadow-sm border border-gray-100 dark:border-gray-800 flex items-center justify-center"
-                            >
-                                <span
-                                    class="material-symbols-outlined text-primary text-3xl"
-                                    >bolt</span
-                                >
-                            </div>
-                            <span
-                                class="text-sm font-bold text-[#111418] dark:text-white"
-                                >PLN Prepaid</span
-                            >
-                        </div>
-                        <div
-                            class="flex flex-col items-center gap-3 group grayscale hover:grayscale-0 transition-all cursor-pointer"
-                        >
-                            <div
-                                class="size-16 rounded-full bg-white dark:bg-background-dark shadow-sm border border-gray-100 dark:border-gray-800 flex items-center justify-center"
-                            >
-                                <span
-                                    class="material-symbols-outlined text-primary text-3xl"
-                                    >water_drop</span
-                                >
-                            </div>
-                            <span
-                                class="text-sm font-bold text-[#111418] dark:text-white"
-                                >PDAM</span
-                            >
-                        </div>
-                        <div
-                            class="flex flex-col items-center gap-3 group grayscale hover:grayscale-0 transition-all cursor-pointer"
-                        >
-                            <div
-                                class="size-16 rounded-full bg-white dark:bg-background-dark shadow-sm border border-gray-100 dark:border-gray-800 flex items-center justify-center"
-                            >
-                                <span
-                                    class="material-symbols-outlined text-primary text-3xl"
-                                    >wifi</span
-                                >
-                            </div>
-                            <span
-                                class="text-sm font-bold text-[#111418] dark:text-white"
-                                >Internet</span
-                            >
-                        </div>
-                        <div
-                            class="flex flex-col items-center gap-3 group grayscale hover:grayscale-0 transition-all cursor-pointer"
-                        >
-                            <div
-                                class="size-16 rounded-full bg-white dark:bg-background-dark shadow-sm border border-gray-100 dark:border-gray-800 flex items-center justify-center"
-                            >
-                                <span
-                                    class="material-symbols-outlined text-primary text-3xl"
-                                    >stethoscope</span
-                                >
-                            </div>
-                            <span
-                                class="text-sm font-bold text-[#111418] dark:text-white"
-                                >BPJS</span
-                            >
-                        </div>
-                        <div
-                            class="flex flex-col items-center gap-3 group grayscale hover:grayscale-0 transition-all cursor-pointer"
-                        >
-                            <div
-                                class="size-16 rounded-full bg-white dark:bg-background-dark shadow-sm border border-gray-100 dark:border-gray-800 flex items-center justify-center"
-                            >
-                                <span
-                                    class="material-symbols-outlined text-primary text-3xl"
-                                    >live_tv</span
-                                >
-                            </div>
-                            <span
-                                class="text-sm font-bold text-[#111418] dark:text-white"
-                                >TV Cable</span
-                            >
-                        </div>
-                    </div>
-                    <div class="mt-12 text-center">
-                        <p
-                            class="text-[#617589] dark:text-gray-400 font-medium mb-6 italic"
-                        >
-                            ...and 200+ more Kiosers across all categories.
-                        </p>
-                       
-                    </div>
-                </div>
-            </section>
-            <!-- CTA Final Section -->
-            <section class="py-20">
-                <div
-                    class="bg-primary rounded-3xl p-10 md:p-20 relative overflow-hidden flex flex-col items-center text-center gap-8"
-                >
-                    <div
-                        class="absolute -top-10 -right-10 size-60 rounded-full bg-white/10 blur-3xl"
-                    ></div>
-                    <div
-                        class="absolute -bottom-10 -left-10 size-60 rounded-full bg-black/10 blur-3xl"
-                    ></div>
-                    <h2
-                        class="text-white text-3xl md:text-5xl font-extrabold max-w-[720px] relative z-10"
-                    >
-                        Ready to Scale Your Payment Infrastructure?
-                    </h2>
-                    <p
-                        class="text-white/80 text-lg font-medium max-w-[600px] relative z-10"
-                    >
-                        Join thousands of companies leveraging KiosPay API to
-                        power their transactions. Create a free developer
-                        account and start building today.
-                    </p>
-                    <div
-                        class="flex flex-wrap justify-center gap-4 relative z-10"
-                    >
-                        <button
-                            class="bg-white text-primary px-8 h-14 rounded-xl font-extrabold hover:scale-105 transition-transform shadow-xl"
-                        >
-                            Start Building for Free
-                        </button>
-                        <button
-                            class="bg-primary/20 backdrop-blur-md text-white border border-white/20 px-8 h-14 rounded-xl font-extrabold hover:bg-white/10 transition-colors"
-                        >
-                            Talk to Sales
-                        </button>
-                    </div>
-                </div>
-            </section>
-        </main>
-        <!-- Footer -->
-        <footer
-            class="bg-white dark:bg-background-dark border-t border-[#f0f2f4] dark:border-[#2a343d] py-16"
-        >
-            <div class="max-w-[1280px] mx-auto px-10">
-                <div
-                    class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-12"
-                >
-                    <div class="col-span-2 lg:col-span-2">
-                        <div class="flex items-center gap-2 text-primary mb-6">
-                            <span
-                                class="material-symbols-outlined text-2xl font-bold"
-                                >bolt</span
-                            >
-                            <h2
-                                class="text-xl font-extrabold text-[#111418] dark:text-white"
-                            >
-                                KiosPay API
-                            </h2>
-                        </div>
-                        <p
-                            class="text-[#617589] dark:text-gray-400 max-w-[320px] mb-6"
-                        >
-                            The ultimate infrastructure for digital payments and
-                            Kioss in Indonesia. Built for scale, security, and
-                            developer happiness.
-                        </p>
-                        <div class="flex gap-4">
-                            <a
-                                class="size-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center hover:bg-primary hover:text-white transition-all"
-                                href="#"
-                            >
-                                <span class="material-symbols-outlined text-xl"
-                                    >share</span
-                                >
-                            </a>
-                            <a
-                                class="size-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center hover:bg-primary hover:text-white transition-all"
-                                href="#"
-                            >
-                                <span class="material-symbols-outlined text-xl"
-                                    >public</span
-                                >
-                            </a>
-                        </div>
-                    </div>
+
+                <!-- Badges -->
+                <div class="badge-right glass">
+                    <div class="badge-icon green"><span class="material-symbols-outlined">check_circle</span></div>
                     <div>
-                        <h4
-                            class="font-bold text-[#111418] dark:text-white mb-6"
-                        >
-                            Product
-                        </h4>
-                        <ul
-                            class="space-y-4 text-sm text-[#617589] dark:text-gray-400 font-medium"
-                        >
-                            <li>
-                                <a
-                                    class="hover:text-primary transition-colors"
-                                    href="#"
-                                    >API Pricing</a
-                                >
-                            </li>
-                            <li>
-                                <a
-                                    class="hover:text-primary transition-colors"
-                                    href="/docs/api"
-                                    >Documentation</a
-                                >
-                            </li>
-                            <li>
-                                <a
-                                    class="hover:text-primary transition-colors"
-                                    href="#"
-                                    >Service List</a
-                                >
-                            </li>
-                            <li>
-                                <a
-                                    class="hover:text-primary transition-colors"
-                                    href="#"
-                                    >Status Page</a
-                                >
-                            </li>
-                        </ul>
-                    </div>
-                    <div>
-                        <h4
-                            class="font-bold text-[#111418] dark:text-white mb-6"
-                        >
-                            Company
-                        </h4>
-                        <ul
-                            class="space-y-4 text-sm text-[#617589] dark:text-gray-400 font-medium"
-                        >
-                            <li>
-                                <a
-                                    class="hover:text-primary transition-colors"
-                                    href="#"
-                                    >About Us</a
-                                >
-                            </li>
-                            <li>
-                                <a
-                                    class="hover:text-primary transition-colors"
-                                    href="#"
-                                    >Customers</a
-                                >
-                            </li>
-                            <li>
-                                <a
-                                    class="hover:text-primary transition-colors"
-                                    href="#"
-                                    >Press Kit</a
-                                >
-                            </li>
-                            <li>
-                                <a
-                                    class="hover:text-primary transition-colors"
-                                    href="#"
-                                    >Careers</a
-                                >
-                            </li>
-                        </ul>
-                    </div>
-                    <div>
-                        <h4
-                            class="font-bold text-[#111418] dark:text-white mb-6"
-                        >
-                            Legal
-                        </h4>
-                        <ul
-                            class="space-y-4 text-sm text-[#617589] dark:text-gray-400 font-medium"
-                        >
-                            <li>
-                                <a
-                                    class="hover:text-primary transition-colors"
-                                    href="#"
-                                    >Privacy Policy</a
-                                >
-                            </li>
-                            <li>
-                                <a
-                                    class="hover:text-primary transition-colors"
-                                    href="#"
-                                    >Terms of Service</a
-                                >
-                            </li>
-                            <li>
-                                <a
-                                    class="hover:text-primary transition-colors"
-                                    href="#"
-                                    >Security</a
-                                >
-                            </li>
-                        </ul>
+                        <p class="badge-title">Bayar Listrik</p>
+                        <p class="badge-sub">Berhasil dalam 2 detik</p>
                     </div>
                 </div>
-                <div
-                    class="mt-16 pt-8 border-t border-[#f0f2f4] dark:border-[#2a343d] flex flex-col md:flex-row justify-between items-center gap-4"
-                >
-                    <p class="text-sm text-[#617589] dark:text-gray-400">
-                        © 2023 KiosPay API Solutions. All rights reserved.
-                    </p>
-                    <div class="flex items-center gap-2">
-                        <span class="size-2 rounded-full bg-green-500"></span>
-                        <p
-                            class="text-xs font-bold text-green-600 uppercase tracking-widest"
-                        >
-                            All Systems Operational
-                        </p>
+
+                <div class="badge-left glass">
+                    <div class="badge-icon primary"><span class="material-symbols-outlined">shield</span></div>
+                    <div>
+                        <p class="badge-title">Keamanan Bank</p>
+                        <p class="badge-sub">Data terenkripsi 256-bit</p>
                     </div>
                 </div>
+
             </div>
-        </footer>
-    </body>
+
+        </div>
+
+    </div>
+</section>
+
+<!-- ================= FEATURES ================= -->
+<section class="features">
+    <div class="container">
+
+        <div class="features-header">
+            <h2 class="features-title">Layanan Unggulan Kami</h2>
+            <p class="features-desc">Nikmati kemudahan transaksi digital dengan berbagai fitur terbaik.</p>
+        </div>
+
+        <div class="features-grid">
+
+            <div class="feature-card">
+                <div class="feature-icon"><span class="material-symbols-outlined">bolt</span></div>
+                <h3>Transaksi Instan</h3>
+                <p>Proses cepat untuk semua jenis pembayaran.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon"><span class="material-symbols-outlined">verified_user</span></div>
+                <h3>Aman & Terpercaya</h3>
+                <p>Keamanan data dan transaksi terenkripsi.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon"><span class="material-symbols-outlined">support_agent</span></div>
+                <h3>Layanan 24/7</h3>
+                <p>Bantuan pelanggan kapan saja.</p>
+            </div>
+
+        </div>
+
+    </div>
+</section>
+
+</main>
+
+
+<!-- ================= FOOTER ================= -->
+<footer>
+    <div class="container footer-grid">
+
+        <div>
+            <div class="brand">
+                <div class="brand-icon"><span class="material-symbols-outlined">payments</span></div>
+                <span class="brand-title">PUNYAKIOS</span>
+            </div>
+            <p class="footer-desc">
+                Solusi pembayaran digital paling andal di Indonesia.
+            </p>
+        </div>
+
+        <div class="footer-columns">
+
+            <div class="footer-col">
+                <p class="footer-title">Produk</p>
+                <a href="#">Isi Pulsa</a>
+                <a href="#">Tagihan PLN</a>
+                <a href="#">E-Wallet</a>
+            </div>
+
+            <div class="footer-col">
+                <p class="footer-title">Perusahaan</p>
+                <a href="#">Tentang Kami</a>
+                <a href="#">Karir</a>
+                <a href="#">Kontak</a>
+            </div>
+
+            <div class="footer-col">
+                <p class="footer-title">Legal</p>
+                <a href="#">Privasi</a>
+                <a href="#">Ketentuan</a>
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="footer-bottom">
+        <p>© 2024 PUNYAKIOS. All rights reserved.</p>
+        <div class="footer-icons">
+            <span class="material-symbols-outlined">public</span>
+            <span class="material-symbols-outlined">camera</span>
+            <span class="material-symbols-outlined">alternate_email</span>
+        </div>
+    </div>
+</footer>
+
+</body>
 </html>

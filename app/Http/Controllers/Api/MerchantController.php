@@ -25,6 +25,10 @@ class MerchantController extends Controller
      * Handle merchant payment request
      * This endpoint receives payment details from merchants and sends notifications to users
      */
+
+    /**
+ * @scramble-skip
+ */
     public function handlePaymentRequest(Request $request)
     {
         // Validate API key from header
@@ -201,5 +205,50 @@ class MerchantController extends Controller
                 ],
             ], 500);
         }
+    }
+
+    /**
+     * Get merchant profile
+     * This endpoint returns the authenticated merchant's profile information
+     */
+    public function MerchantProfile(Request $request)
+    {
+        // Validate API key from header
+        $apiKey = $request->header('X-API-Key') ?: $request->header('API-Key') ?: $request->input('api_key');
+
+        if (!$apiKey) {
+            return new ApiResponseResource([
+                'status' => false,
+                'message' => 'API key is required',
+                'data' => null
+            ], 401);
+        }
+
+        // Find merchant by API key
+        $merchant = Merchant::where('api_key', $apiKey)->first();
+
+        if (!$merchant) {
+            return new ApiResponseResource([
+                'status' => false,
+                'message' => 'Unauthorized: Invalid API key',
+                'data' => null
+            ], 401);
+        }
+
+        // Return merchant profile information
+        return new ApiResponseResource([
+            'status' => true,
+            'message' => 'Merchant profile retrieved successfully',
+            'data' => [
+                'id' => $merchant->id,
+                'name' => $merchant->name,
+                'username' => $merchant->username,
+                'email' => $merchant->email,
+                'phone' => $merchant->phone,
+                'business_name' => $merchant->business_name,
+                'created_at' => $merchant->created_at,
+                'updated_at' => $merchant->updated_at,
+            ],
+        ]);
     }
 }

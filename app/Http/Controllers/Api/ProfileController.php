@@ -52,7 +52,7 @@ class ProfileController extends Controller
         ]);
     }
 
-   /**
+    /**
  * Ambil transaksi user (termasuk transaksi pasca bayar dan permintaan pembayaran)
  */
 public function transactions(Request $request)
@@ -69,16 +69,17 @@ public function transactions(Request $request)
 
     // Ambil 20 transaksi terbaru user dari transaction table (more than needed for combination)
     $regularTransactions = TransactionModel::where('transaction_user_id', $user->id)
-                                           ->with('user') // Eager load relasi user untuk menghindari N+1 query
-                                           ->orderBy('created_at', 'desc')
-                                           ->limit(20)
-                                           ->get();
+                                           ->with(['user', 'product']) // Eager load relasi user dan product untuk menghindari N+1 query
+                                            ->orderBy('created_at', 'desc')
+                                            ->limit(20)
+                                            ->get();
                                            // ->remember(300) // Cache for 5 minutes - commented out for dynamic data
 
     // Ambil 20 transaksi pasca bayar terbaru dari pasca_transactions table (more than needed for combination)
     $pascaTransactions = PascaTransaction::where('user_id', $user->id)
-                                         ->orderBy('created_at', 'desc')
-                                         ->limit(20)
+                                            ->with('product') // Eager load relasi product untuk menghindari N+1 query
+                                            ->orderBy('created_at', 'desc')
+                                            ->limit(20)
                                          ->get(); // PascaTransaction tidak memiliki relasi user jadi tidak perlu eager loading
 
     // Ambil 20 permintaan pembayaran terbaru dari payment_requests table
@@ -96,6 +97,7 @@ public function transactions(Request $request)
             'ref' => $transaction->transaction_code,
             'tujuan' => $transaction->transaction_number,
             'sku' => $transaction->transaction_sku,
+            'produk' => $transaction->product ? $transaction->product->product_name : null,
             'status' => $transaction->transaction_status,
             'message' => $transaction->transaction_message,
             'price' => $transaction->transaction_total,  // Using transaction_total from transaction record
@@ -110,6 +112,7 @@ public function transactions(Request $request)
             'ref' => $transaction->ref_id,
             'tujuan' => $transaction->customer_no,
             'sku' => $transaction->sku_code,
+            'nama_produk' => $transaction->product ? $transaction->product->product_name : null,
             'status' => $transaction->status_payment ?: $transaction->status_inquiry,
             'message' => $transaction->message_payment ?: $transaction->message_inquiry,
             'price' => $transaction->amount_total,  // Using amount_total which should be the selling_price equivalent

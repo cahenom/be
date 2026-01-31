@@ -79,5 +79,5 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
 Route::controller(MerchantController::class)->prefix('merchant')->group(function () {
     Route::post('/profile', 'MerchantProfile');
-    Route::post('/request', 'HandlePaymentRequest'); // Send payment request to user
+    Route::post('/request', 'handlePaymentRequest'); // Send payment request to user
 });

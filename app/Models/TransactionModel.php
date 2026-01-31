@@ -111,6 +111,14 @@ class TransactionModel extends Model
     }
 
     /**
+     * Get the product information for the transaction.
+     */
+    public function product()
+    {
+        return $this->belongsTo(ProductPrepaid::class, 'transaction_sku', 'product_sku');
+    }
+
+    /**
      * Scope to include user relation for better performance
      */
     public function scopeWithUser($query)
