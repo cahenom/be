@@ -85,6 +85,25 @@ class ProductController extends Controller
         ]);
     }
 
+    //data prepaid
+    public function data()
+    {
+        $products = $this->applyMarkupToProducts(
+            Cache::remember('products_data', 1800, function () { // Cache for 30 minutes
+                return ProductPrepaid::where('product_category', 'Data')->get();
+            })
+        );
+
+        return new ApiResponseResource([
+            'status' => 'success',
+            'ref_id' => null,
+            'message' => 'Daftar paket data ditemukan',
+            'data' => [
+                'data' => ProductResource::collection($products)
+            ]
+        ]);
+    }
+
     /* -----------------------------------------
         E-MONEY
     ------------------------------------------*/

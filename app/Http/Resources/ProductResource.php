@@ -14,6 +14,7 @@ class ProductResource extends JsonResource
             "desc"      => $this->product_desc,
             "category"  => $this->product_category,
             "provider"  => $this->product_provider,
+            "type"      => $this->product_type,
             "sku"       => $this->product_sku,
             "multi"     => $this->product_multi,
             "price"     => $this->product_buyer_price,  // hanya harga jual

@@ -23,19 +23,30 @@ class PricingService
         return $basePrice;
     }
 
-    // Hitung markup
-    $markupPercent = $profit->markup_percent;
-    $markup = $basePrice * ($markupPercent / 100);
+    // Tiered markup based on product price
+    if ($basePrice < 100000) {
+        $markup = 200;  // For products under 100,000
+    } elseif ($basePrice >= 100000 && $basePrice < 500000) {
+        $markup = 500;  // For products between 100,000 and 499,999
+    } else {
+        $markup = 1000; // For products 500,000 and above
+    }
+
+    // Apply maximum constraint if set (acts as overall cap)
+    if ($profit->markup_max > 0 && $markup > $profit->markup_max) {
+        $markup = $profit->markup_max;
+    }
+
     $sellingPrice = round($basePrice + $markup);
 
     // 🔥 LOG UNTUK DEV MODE
    // \Log::info("MARKUP DEBUG", [
    //     "role_id"         => $roleId,
-   //     "markup_percent"  => $markupPercent,
    //     "base_price"      => $basePrice,
-  //      "markup_added"    => $markup,
+   //     "markup_added"    => $markup,
+   //     "markup_tier"     => $basePrice < 100000 ? 'under_100k' : ($basePrice < 500000 ? '100k_to_500k' : 'above_500k'),
    //     "selling_price"   => $sellingPrice
-    //]);
+   // ]);
 
     return $sellingPrice;
 }

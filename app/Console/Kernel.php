@@ -16,6 +16,9 @@ class Kernel extends ConsoleKernel
 
         // Schedule settlement processing to run daily
         $schedule->command('app:process-settlements')->daily();
+
+        // Schedule pending payment request expiration to run daily
+        $schedule->command('app:expire-pending-payment-requests')->daily();
     }
 
     /**

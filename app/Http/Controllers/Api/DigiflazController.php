@@ -260,6 +260,9 @@ class DigiflazController extends Controller
             ]);
         }
 
+        // Delete existing prepaid products before inserting new ones
+        ProductPrepaid::truncate();
+
         $this->model->insert_data($result['data']);
 
         return new ApiResponseResource([
@@ -303,6 +306,9 @@ class DigiflazController extends Controller
                 'ref_id'  => null
             ]);
         }
+
+        // Delete existing postpaid products before inserting new ones
+        ProductPasca::truncate();
 
         $this->model_pasca->insert_data($result['data']);
 

@@ -104,4 +104,22 @@ class PaymentRequest extends Model
                $this->settlement_due_date &&
                $this->settlement_due_date->lte(now());
     }
+
+    /**
+     * Scope to get expired pending payment requests
+     */
+    public function scopeExpiredPending($query)
+    {
+        return $query->where('status', 'pending')
+                    ->where('created_at', '<', now()->subDay());
+    }
+
+    /**
+     * Check if the payment request has expired
+     */
+    public function isExpired()
+    {
+        // Check if it's a pending request that's older than 24 hours
+        return $this->status === 'pending' && $this->created_at->lt(now()->subDay());
+    }
 }
