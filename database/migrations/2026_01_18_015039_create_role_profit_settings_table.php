@@ -11,13 +11,11 @@ return new class extends Migration
      */
     public function up()
 {
-    Schema::create('role_profit_settings', function (Blueprint $table) {
+    Schema::create('price_settings', function (Blueprint $table) {
         $table->id();
-        $table->unsignedBigInteger('role_id'); 
-        $table->decimal('markup_percent', 5, 2)->default(0);
-        $table->decimal('markup_min', 10, 2)->default(0);
-        $table->decimal('markup_max', 10, 2)->default(0);
-        $table->boolean('is_default')->default(false);
+        $table->unsignedBigInteger('role_id');
+        $table->integer('min_price'); // Price threshold
+        $table->integer('markup');    // Final markup for this role and threshold
         $table->timestamps();
 
         $table->foreign('role_id')
@@ -26,36 +24,24 @@ return new class extends Migration
               ->onDelete('cascade');
     });
 
-    // ⬇ Tambahkan default data DI SINI
-    DB::table('role_profit_settings')->insert([
-        [
-            'role_id'        => 1,  // user
-            'markup_percent' => 5,
-            'markup_min'     => 0,
-            'markup_max'     => 0,
-            'is_default'     => true,
-            'created_at'     => now(),
-            'updated_at'     => now(),
-        ],
-        [
-            'role_id'        => 2, // reseller
-            'markup_percent' => 3,
-            'markup_min'     => 0,
-            'markup_max'     => 0,
-            'is_default'     => false,
-            'created_at'     => now(),
-            'updated_at'     => now(),
-        ],
-        [
-            'role_id'        => 3, // agen
-            'markup_percent' => 2,
-            'markup_min'     => 0,
-            'markup_max'     => 0,
-            'is_default'     => false,
-            'created_at'     => now(),
-            'updated_at'     => now(),
-        ],
-    ]);
+    // ⬇ Default Pricing Settings (9 combinations: 3 Roles x 3 Tiers)
+    $tiers = [
+        ['min' => 0,       'markups' => [1 => 500,  2 => 200,  3 => 0]],
+        ['min' => 700000,  'markups' => [1 => 1000, 2 => 700,  3 => 500]],
+        ['min' => 1500000, 'markups' => [1 => 2000, 2 => 1700, 3 => 1500]],
+    ];
+
+    foreach ($tiers as $tier) {
+        foreach ($tier['markups'] as $roleId => $markup) {
+            DB::table('price_settings')->insert([
+                'role_id'    => $roleId,
+                'min_price'  => $tier['min'],
+                'markup'     => $markup,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+    }
 }
 
 

@@ -60,14 +60,49 @@ class ProductController extends Controller
             ]);
         }
 
-        // Cache produk pulsa dan data untuk provider ini
+        // Cache produk pulsa untuk provider ini
         $pulsa = $this->applyMarkupToProducts(
             Cache::remember("products_pulsa_{$provider->provider}", 1800, function () use ($provider) {
                 return ProductPrepaid::findProductByProvider($provider->provider, 'Pulsa')->get();
             })
         );
 
-        $paketData = $this->applyMarkupToProducts(
+        return new ApiResponseResource([
+            'status' => 'success',
+            'ref_id' => null,
+            'message' => 'Produk pulsa ditemukan',
+            'data' => [
+                'provider' => $provider->provider,
+                'pulsa' => ProductResource::collection($pulsa),
+            ]
+        ]);
+    }
+
+    //data prepaid
+    public function data(Request $request)
+    {
+        $request->validate([
+            'customer_no' => 'required|min:4'
+        ]);
+
+        $prefix = substr($request->customer_no, 0, 4);
+
+        // Cache provider lookup for 1 hour
+        $cacheKey = "provider_by_prefix_{$prefix}";
+        $provider = Cache::remember($cacheKey, 3600, function () use ($prefix) {
+            return PrefixNumber::findProviderByNumber($prefix)->first();
+        });
+
+        if (!$provider) {
+            return new ApiResponseResource([
+                'status'  => 'error',
+                'ref_id'  => null,
+                'message' => 'Provider tidak ditemukan',
+                'data'    => null
+            ]);
+        }
+
+        $products = $this->applyMarkupToProducts(
             Cache::remember("products_data_{$provider->provider}", 1800, function () use ($provider) {
                 return ProductPrepaid::findProductByProvider($provider->provider, 'Data')->get();
             })
@@ -76,29 +111,9 @@ class ProductController extends Controller
         return new ApiResponseResource([
             'status' => 'success',
             'ref_id' => null,
-            'message' => 'Produk pulsa & paket data ditemukan',
-            'data' => [
-                'provider' => $provider->provider,
-                'pulsa' => ProductResource::collection($pulsa),
-                'paket_data' => ProductResource::collection($paketData),
-            ]
-        ]);
-    }
-
-    //data prepaid
-    public function data()
-    {
-        $products = $this->applyMarkupToProducts(
-            Cache::remember('products_data', 1800, function () { // Cache for 30 minutes
-                return ProductPrepaid::where('product_category', 'Data')->get();
-            })
-        );
-
-        return new ApiResponseResource([
-            'status' => 'success',
-            'ref_id' => null,
             'message' => 'Daftar paket data ditemukan',
             'data' => [
+                'provider' => $provider->provider,
                 'data' => ProductResource::collection($products)
             ]
         ]);

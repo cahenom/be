@@ -19,8 +19,11 @@ return new class extends Migration
             $table->decimal('price', 15, 2); // Price amount
             $table->string('email'); // Email of the user to notify
             $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('set null'); // Link to user if found
-            $table->enum('status', ['pending', 'approved', 'rejected', 'cancelled', 'completed'])->default('pending');
+            $table->enum('status', ['pending', 'approved', 'rejected', 'cancelled', 'completed', 'failed', 'success'])->default('pending'); // Updated enum consolidated from update_status_enum
             $table->timestamp('expires_at')->nullable(); // When the request expires
+            $table->timestamp('settled_at')->nullable(); // Consolidated from add_settlement_fields
+            $table->enum('settlement_status', ['pending_settlement', 'settled', 'cancelled'])->default('pending_settlement'); // Consolidated from add_settlement_fields
+            $table->timestamp('settlement_due_date')->nullable(); // Consolidated from add_settlement_fields
             $table->text('metadata')->nullable(); // Additional data as JSON
             $table->timestamps();
         });

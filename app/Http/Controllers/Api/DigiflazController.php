@@ -10,6 +10,7 @@ use App\Models\TransactionModel;
 use App\Services\PricingService;
 use App\Traits\CodeGenerate;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -62,8 +63,8 @@ class DigiflazController extends Controller
         'customer_no' => 'required|string|min:6',
     ]);
 
-    $ref_id = $this->getCode();
     $user   = auth()->user();
+    $ref_id = $this->getCode();
 
     if (!$user) {
         return new ApiResponseResource([
@@ -74,21 +75,35 @@ class DigiflazController extends Controller
         ]);
     }
 
-    // Cek apakah ada transaksi serupa yang masih dalam proses (untuk mencegah double spending)
-    $recentTransaction = $this->model_transaction->checkRecentTransaction(
-        $request->customer_no,
-        $request->sku,
-        $user->id
-    );
+    // 🛡️ ATOMIC LOCK: Prevent concurrent double-spend for same target+sku
+    $lockKey = "topup_lock_{$user->id}_{$request->sku}_{$request->customer_no}";
+    $lock = Cache::lock($lockKey, 30); // 30 second timeout
 
-    if ($recentTransaction) {
+    if (!$lock->get()) {
         return new ApiResponseResource([
             'status'  => 'error',
             'ref_id'  => $ref_id,
-            'message' => 'Transaksi untuk nomor dan produk ini masih dalam proses. Mohon tunggu hingga selesai.',
+            'message' => 'Transaksi sedang diproses. Mohon tunggu sebentar.',
             'data'    => null,
         ]);
     }
+
+    try {
+        // Cek apakah ada transaksi serupa yang masih dalam proses
+        $recentTransaction = $this->model_transaction->checkRecentTransaction(
+            $request->customer_no,
+            $request->sku,
+            $user->id
+        );
+
+        if ($recentTransaction) {
+            return new ApiResponseResource([
+                'status'  => 'error',
+                'ref_id'  => $ref_id,
+                'message' => 'Transaksi untuk nomor dan produk ini masih dalam proses. Mohon tunggu hingga selesai.',
+                'data'    => null,
+            ]);
+        }
 
     // Ambil produk
     $product = ProductPrepaid::findProductBySKU($request->sku)->first();
@@ -218,12 +233,15 @@ class DigiflazController extends Controller
         ];
     }
 
-    return new ApiResponseResource([
-        'status'  => $data['status'] ?? 'error',
-        'message' => $data['message'] ?? 'Transaksi gagal',
-        'data'    => $simplifiedTopupData,
-        'code'    => 200
-    ]);
+        return new ApiResponseResource([
+            'status'  => $data['status'] ?? 'error',
+            'message' => $data['message'] ?? 'Transaksi gagal',
+            'data'    => $simplifiedTopupData,
+            'code'    => 200
+        ]);
+    } finally {
+        $lock->release();
+    }
 }
 
 
@@ -500,21 +518,35 @@ class DigiflazController extends Controller
         ]);
     }
 
-    // Cek apakah ada transaksi serupa yang masih dalam proses (untuk mencegah double spending)
-    $recentTransaction = $this->model_transaction->checkRecentTransaction(
-        $request->customer_no,
-        $request->sku,
-        $user->id
-    );
+    // 🛡️ ATOMIC LOCK: Prevent concurrent double-spend for same target+sku
+    $lockKey = "payment_lock_{$user->id}_{$request->sku}_{$request->customer_no}";
+    $lock = Cache::lock($lockKey, 30); // 30 second timeout
 
-    if ($recentTransaction) {
+    if (!$lock->get()) {
         return new ApiResponseResource([
             'status'  => 'error',
             'ref_id'  => $payment_ref_id,
-            'message' => 'Transaksi untuk nomor dan produk ini masih dalam proses. Mohon tunggu hingga selesai.',
+            'message' => 'Pembayaran sedang diproses. Mohon tunggu sebentar.',
             'data'    => null,
         ]);
     }
+
+    try {
+        // Cek apakah ada transaksi serupa yang masih dalam proses
+        $recentTransaction = $this->model_transaction->checkRecentTransaction(
+            $request->customer_no,
+            $request->sku,
+            $user->id
+        );
+
+        if ($recentTransaction) {
+            return new ApiResponseResource([
+                'status'  => 'error',
+                'ref_id'  => $payment_ref_id,
+                'message' => 'Transaksi untuk nomor dan produk ini masih dalam proses. Mohon tunggu hingga selesai.',
+                'data'    => null,
+            ]);
+        }
 
     // Find the pasca transaction by sku and customer_no (for internal inquiries)
     $pascaTransaction = \App\Models\PascaTransaction::where('sku_code', $request->sku)
@@ -760,12 +792,15 @@ class DigiflazController extends Controller
         ];
     }
 
-    return new ApiResponseResource([
-        'status'  => $data['status'] ?? 'error',
-        'ref_id'  => $payment_ref_id,  // Return the payment reference ID
-        'message' => $data['message'] ?? 'Pembayaran gagal',
-        'data'    => $simplifiedPaymentData
-    ]);
+        return new ApiResponseResource([
+            'status'  => $data['status'] ?? 'error',
+            'ref_id'  => $payment_ref_id,  // Return the payment reference ID
+            'message' => $data['message'] ?? 'Pembayaran gagal',
+            'data'    => $simplifiedPaymentData
+        ]);
+    } finally {
+        $lock->release();
+    }
 }
 
     /**

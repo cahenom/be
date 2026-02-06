@@ -53,37 +53,46 @@ class XenditWebhookController extends Controller
 
         if ($status === 'PAID' && $externalId) {
             // Find the deposit record by external_id
-            $deposit = \App\Models\Deposit::where('external_id', $externalId)->first();
+            \DB::transaction(function () use ($externalId, $invoiceData) {
+                // Lock the deposit record to prevent concurrent updates
+                $deposit = \App\Models\Deposit::where('external_id', $externalId)->lockForUpdate()->first();
 
-            if ($deposit) {
+                if (!$deposit) {
+                    Log::warning("Deposit record not found for external_id: {$externalId}", [
+                        'external_id' => $externalId,
+                        'invoice_data' => $invoiceData,
+                    ]);
+                    return;
+                }
+
+                // 🛡️ IDEMPOTENCY: If already paid, skip to prevent double-deposit
+                if ($deposit->status === 'paid') {
+                    Log::info("Deposit {$externalId} already processed. Skipping balance update.");
+                    return;
+                }
+
                 // Update deposit status
                 $deposit->update([
                     'status' => 'paid',
                     'xendit_response' => array_merge($deposit->xendit_response ?? [], $invoiceData)
                 ]);
 
-                $user = $deposit->user;
+                $user = \App\Models\User::where('id', $deposit->user_id)->lockForUpdate()->first();
 
                 if ($user) {
                     // Update user balance with the paid amount
                     $amount = $invoiceData['amount'];
-                    $user->increment('saldo', $amount);
+                    $user->saldo += $amount;
+                    $user->save();
 
-                    Log::info("User balance updated for user ID {$user->id}. Amount: {$amount}", [
+                    Log::info("User balance updated via Xendit for user ID {$user->id}. Amount: {$amount}", [
                         'user_id' => $user->id,
                         'new_balance' => $user->saldo,
                         'external_id' => $externalId,
                         'invoice_id' => $invoiceData['id'],
-                        'timestamp' => now()->toISOString(),
                     ]);
                 }
-            } else {
-                Log::warning("Deposit record not found for external_id: {$externalId}", [
-                    'external_id' => $externalId,
-                    'invoice_data' => $invoiceData,
-                    'timestamp' => now()->toISOString(),
-                ]);
-            }
+            });
         }
 
         return response()->json(['status' => 'received'], 200);

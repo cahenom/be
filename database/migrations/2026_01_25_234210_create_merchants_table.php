@@ -21,6 +21,7 @@ return new class extends Migration
             $table->text('ip')->nullable(); // Store IP addresses as text (can be comma-separated)
             $table->string('password'); // Hashed password
             $table->string('api_key')->unique(); // Unique API key for authentication
+            $table->decimal('saldo', 15, 2)->default(0); // Consolidated from add_saldo_to_merchants_table
             $table->timestamps();
         });
     }

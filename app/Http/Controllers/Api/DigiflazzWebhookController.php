@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use App\Models\TransactionModel;
 use App\Services\FirebaseService;
+use Illuminate\Support\Facades\Cache;
 use App\Models\User;
 
 class DigiflazzWebhookController extends Controller
@@ -46,92 +47,110 @@ class DigiflazzWebhookController extends Controller
             return response()->json(['message' => 'OK'], 200);
         }
 
-        $data = $payload['data'];
-        $ua = $request->header('User-Agent');
-        $type = ($ua === 'Digiflazz-Pasca-Hookshot') ? 'Pasca' : 'Prepaid';
+        // 🛡️ ATOMIC LOCK: Prevent simultaneous processing of the same webhook payload
+        // We use a hash of the raw content to identify identical requests
+        $lockKey = 'webhook_lock_' . md5($raw);
+        $lock = Cache::lock($lockKey, 60); // 60s should be plenty
 
-        // Log webhook data for debugging
-        \Log::info('Digiflazz Webhook Received:', [
-            'user_agent' => $ua,
-            'type' => $type,
-            'ref_id' => $data['ref_id'] ?? null,
-            'status' => $data['status'] ?? null,
-            'message' => $data['message'] ?? null,
-            'sn' => $data['sn'] ?? null,
-            'event' => $request->header('X-Digiflazz-Event'),
-        ]);
-
-        // 3. Tentukan harga modal dan harga jual
-        $cost = 0;
-        $selling = 0;
-
-        if ($type === 'Prepaid') {
-            // Prepaid → price = modal asli
-            $cost = $data['price'] ?? 0;
-            $selling = $cost; // jual sebelum markup (asli dari digiflazz)
-        } else {
-            // Pascabayar
-            $cost = ($data['price'] ?? 0) + ($data['admin'] ?? 0);
-            $selling = $data['selling_price'] ?? $cost;
+        if (!$lock->get()) {
+            return response()->json(['message' => 'Processing...'], 202);
         }
 
-        // 4. Hitung profit (keuntungan)
-        $profit = max($selling - $cost, 0);
+        try {
+            $data = $payload['data'];
+            $ua = $request->header('User-Agent');
+            $type = ($ua === 'Digiflazz-Pasca-Hookshot') ? 'Pasca' : 'Prepaid';
 
-        // 5. Cari transaksi berdasarkan ref_id
-        $trx = TransactionModel::where('transaction_code', $data['ref_id'])->first();
-
-        // Get product information to determine provider
-        $productProvider = 'Digiflazz'; // Default fallback
-
-        if ($type === 'Prepaid') {
-            $product = \App\Models\ProductPrepaid::findProductBySKU($data['buyer_sku_code'] ?? '')->first();
-            $productProvider = $product ? $product->product_provider : 'Digiflazz';
-        } else {
-            $product = \App\Models\ProductPasca::findBySKU($data['buyer_sku_code'] ?? '')->first();
-            $productProvider = $product ? $product->product_provider : 'Digiflazz';
-        }
-
-        $payloadToSave = [
-            'transaction_code'     => $data['ref_id'],
-            'transaction_date'     => now()->toDateString(),
-            'transaction_time'     => now()->toTimeString(),
-            'transaction_type'     => $type,
-            'transaction_provider' => $data['brand'] ?? $productProvider,
-            'transaction_number'   => $data['customer_no'] ?? null,
-            'transaction_sku'      => $data['buyer_sku_code'] ?? null,
-
-            // 💰 FINANCE - PRESERVE ORIGINAL TRANSACTION_TOTAL
-            'transaction_cost'     => $cost,
-            'transaction_profit'   => $profit,
-
-            'transaction_message'  => $data['message'] ?? null,
-            'transaction_status'   => $data['status'] ?? null,
-            'transaction_sn'       => $data['sn'] ?? null,  // Add SN field from webhook
-        ];
-
-        if ($trx) {
-            // Only update fields that might change, preserve original transaction_total
-            $trx->update([
-                'transaction_message' => $data['message'] ?? null,
-                'transaction_status' => $data['status'] ?? null,
-                'transaction_sn' => $data['sn'] ?? null,
-                'transaction_cost' => $cost,
-                'transaction_profit' => $profit,
+            // Log webhook data for debugging
+            \Log::info('Digiflazz Webhook Received:', [
+                'user_agent' => $ua,
+                'type' => $type,
+                'ref_id' => $data['ref_id'] ?? null,
+                'status' => $data['status'] ?? null,
+                'message' => $data['message'] ?? null,
+                'sn' => $data['sn'] ?? null,
+                'event' => $request->header('X-Digiflazz-Event'),
             ]);
 
-            // If transaction failed, refund the user's balance
-            if (strtolower($data['status'] ?? '') === 'gagal') {
-                $this->refundUserBalance($trx, $selling);
+            // 3. Tentukan harga modal dan harga jual
+            $cost = 0;
+            $selling = 0;
+
+            if ($type === 'Prepaid') {
+                // Prepaid → price = modal asli
+                $cost = $data['price'] ?? 0;
+                $selling = $cost; // jual sebelum markup (asli dari digiflazz)
+            } else {
+                // Pascabayar
+                $cost = ($data['price'] ?? 0) + ($data['admin'] ?? 0);
+                $selling = $data['selling_price'] ?? $cost;
             }
 
-            \Log::info('Prepaid transaction updated via webhook:', [
-                'ref_id' => $data['ref_id'],
-                'status' => $data['status'],
-                'message' => $data['message'],
-                'sn' => $data['sn'],
-            ]);
-        } else {
+            // 4. Hitung profit (keuntungan)
+            $profit = max($selling - $cost, 0);
+
+            // 5. Cari transaksi berdasarkan ref_id
+            $trx = TransactionModel::where('transaction_code', $data['ref_id'])->first();
+
+            // Get product information to determine provider
+            $productProvider = 'Digiflazz'; // Default fallback
+
+            if ($type === 'Prepaid') {
+                $product = \App\Models\ProductPrepaid::findProductBySKU($data['buyer_sku_code'] ?? '')->first();
+                $productProvider = $product ? $product->product_provider : 'Digiflazz';
+            } else {
+                $product = \App\Models\ProductPasca::findBySKU($data['buyer_sku_code'] ?? '')->first();
+                $productProvider = $product ? $product->product_provider : 'Digiflazz';
+            }
+
+            $payloadToSave = [
+                'transaction_code'     => $data['ref_id'],
+                'transaction_date'     => now()->toDateString(),
+                'transaction_time'     => now()->toTimeString(),
+                'transaction_type'     => $type,
+                'transaction_provider' => $data['brand'] ?? $productProvider,
+                'transaction_number'   => $data['customer_no'] ?? null,
+                'transaction_sku'      => $data['buyer_sku_code'] ?? null,
+
+                // 💰 FINANCE - PRESERVE ORIGINAL TRANSACTION_TOTAL
+                'transaction_cost'     => $cost,
+                'transaction_profit'   => $profit,
+
+                'transaction_message'  => $data['message'] ?? null,
+                'transaction_status'   => $data['status'] ?? null,
+                'transaction_sn'       => $data['sn'] ?? null,  // Add SN field from webhook
+            ];
+
+            if ($trx) {
+                // 🛡️ IDEMPOTENCY: If current transaction is already marked Gagal, skip further status updates/refunds
+                if (strtolower($trx->transaction_status) === 'gagal') {
+                    return response()->json(['message' => 'Transaction already failed and processed'], 200);
+                }
+
+                // Only update fields that might change, preserve original transaction_total
+                $trx->update([
+                    'transaction_message' => $data['message'] ?? null,
+                    'transaction_status' => $data['status'] ?? null,
+                    'transaction_sn' => $data['sn'] ?? null,
+                    'transaction_cost' => $cost,
+                    'transaction_profit' => $profit,
+                ]);
+
+                // If transaction failed, refund the user's balance
+                if (strtolower($data['status'] ?? '') === 'gagal') {
+                    // 💰 BIG FIX: Use the total price user actually paid ($trx->transaction_total)
+                    // instead of modal price from Digiflazz webhook ($selling).
+                    $refundAmount = $trx->transaction_total ?: $selling;
+                    $this->refundUserBalance($trx, $refundAmount);
+                }
+
+                \Log::info('Prepaid transaction updated via webhook:', [
+                    'ref_id' => $data['ref_id'],
+                    'status' => $data['status'],
+                    'message' => $data['message'],
+                    'sn' => $data['sn'],
+                ]);
+            } else {
             // For new transactions, set the transaction_total from the original creation
             $payloadToSave['transaction_total'] = $selling; // Only for new transactions
 
@@ -201,7 +220,12 @@ class DigiflazzWebhookController extends Controller
         ]);
 
         return response()->json(['message' => 'OK'], 200);
+    } finally {
+        if (isset($lock)) {
+            $lock->release();
+        }
     }
+}
 
     /**
      * Send FCM notification to user about transaction status

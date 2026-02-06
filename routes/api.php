@@ -47,10 +47,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/balance', 'balance');
     });
 
-        Route::controller(DigiflazController::class)->prefix('admin')->group(function () {
+    Route::middleware(['admin'])->controller(DigiflazController::class)->prefix('admin')->group(function () {
         Route::post('/get-product-prepaid', 'get_product_prepaid');
         Route::post('/get-product-pasca', 'get_product_pasca');
-        });
+    });
 
     Route::controller(DigiflazController::class)->prefix('order')->group(function () {
         Route::post('/topup', 'digiflazTopup');
@@ -59,9 +59,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     });
 
     // Product endpoints with descriptions
-    Route::controller(ProductController::class)->prefix('product')->group(function () {
-        Route::post('/pulsa', 'pulsa'); 
-        Route::post('/data', 'data');        // Get pulsa and data package products based on customer number
+    Route::middleware('throttle:product')->controller(ProductController::class)->prefix('product')->group(function () {
+        Route::post('/pulsa', 'pulsa');
+        Route::post('/data', 'data');        // Get data package products based on customer number
         Route::post('/emoney', 'emoney');        // Get e-money products
         Route::post('/games', 'games');          // Get game products
         Route::post('/masaaktif', 'masa_aktif'); // Get active period products

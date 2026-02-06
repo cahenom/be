@@ -35,6 +35,7 @@ return new class extends Migration
 
             $table->string('message_inquiry', 255)->nullable();
             $table->string('message_payment', 255)->nullable();
+            $table->string('sn')->nullable()->after('message_payment'); // Consolidated from add_sn_to_transactions_tables
 
             $table->timestamps();
 

@@ -22,6 +22,7 @@ return new class extends Migration
             $table->string('transaction_sku');
             $table->integer('transaction_total');
             $table->string('transaction_message');
+            $table->string('transaction_sn')->nullable()->after('transaction_message'); // Consolidated from add_sn_to_transactions_tables
             $table->string('transaction_status');
             $table->unsignedBigInteger('transaction_user_id');
             $table->timestamps();

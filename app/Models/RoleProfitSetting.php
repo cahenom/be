@@ -12,9 +12,7 @@ class RoleProfitSetting extends Model
 
     protected $fillable = [
         'role_id',
-        'markup_percent',
-        'markup_min',
-        'markup_max',
+        'markup_reduction',
         'is_default',
     ];
 
