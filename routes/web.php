@@ -16,3 +16,8 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return view('welcome');
 });
+
+// Deposit redirect routes
+Route::get('/deposit/success', [App\Http\Controllers\DepositRedirectController::class, 'success'])->name('deposit.success');
+Route::get('/deposit/failed', [App\Http\Controllers\DepositRedirectController::class, 'failed'])->name('deposit.failed');
+

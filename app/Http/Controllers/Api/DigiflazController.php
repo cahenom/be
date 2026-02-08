@@ -142,7 +142,9 @@ class DigiflazController extends Controller
             'Prepaid',
             $product->product_provider,
             $user->id,
-            $harga_jual
+            $harga_jual,
+            $product->product_name,
+            $product->product_category
         );
 
         // Return response for insufficient balance
@@ -215,7 +217,9 @@ class DigiflazController extends Controller
             'Prepaid',
             $product->product_provider,
             $user->id,
-            $harga_jual
+            $harga_jual,
+            $product->product_name,
+            $product->product_category
         );
     }
 
@@ -555,31 +559,29 @@ class DigiflazController extends Controller
 
     // If not found, it might be an external inquiry where the customer_no is the kode_bayar
     // In this case, we need to create a temporary record or find another way to process
+    // For external payments/tagihan that might not have a local inquiry record
     if (!$pascaTransaction) {
-        // Create a temporary pasca transaction record for this external payment
-        $pascaTransaction = new \App\Models\PascaTransaction();
-        $pascaTransaction->ref_id = $payment_ref_id;
-        $pascaTransaction->user_id = $user->id;
-        $pascaTransaction->sku_code = $request->sku; // Use the provided sku
-        $pascaTransaction->customer_no = $request->customer_no; // Store the kode_bayar or customer identifier
-        $pascaTransaction->status_inquiry = 'success'; // Assume success since kode_bayar exists
-        $pascaTransaction->status_payment = 'success'; // For external payments, mark as success immediately
-        $pascaTransaction->message_inquiry = 'External inquiry processed';
-        $pascaTransaction->message_payment = 'Payment processed externally';
-        $pascaTransaction->amount_total = 0; // Set to 0 for now, or fetch actual amount if possible
-        $pascaTransaction->save();
-
-        // For external payments, return success immediately without calling external API again
-        return new ApiResponseResource([
-            'status'  => 'success',
-            'ref_id'  => $payment_ref_id,
-            'message' => 'Pembayaran berhasil diproses secara eksternal',
-            'data'    => [
-                'ref_id' => $payment_ref_id,
-                'customer_no' => $request->customer_no,
-                'status' => 'success',
-                'message' => 'Pembayaran berhasil diproses secara eksternal'
-            ]
+        // We still need to allow payment if the parameters are valid
+        // But we should probably look up the product first to get the provider
+        $product = ProductPasca::findBySKU($request->sku)->first();
+        if (!$product) {
+            return new ApiResponseResource([
+                'status'  => 'error',
+                'ref_id'  => $payment_ref_id,
+                'message' => 'SKU tidak ditemukan atau tagihan belum di-cek',
+                'data'    => null,
+            ]);
+        }
+        
+        // Create a temporary pasca transaction record to keep track
+        $pascaTransaction = \App\Models\PascaTransaction::create([
+            'ref_id'        => $payment_ref_id,
+            'user_id'       => $user->id,
+            'sku_code'      => $request->sku,
+            'customer_no'   => $request->customer_no,
+            'status_inquiry'=> 'success', // Assigned for external flow
+            'status_payment'=> 'pending',
+            'amount_total'  => 0, // Will be updated from API response if possible
         ]);
     }
 
@@ -658,13 +660,7 @@ class DigiflazController extends Controller
     }
 
     // =============== LANJUT DIGIFLAZZ (KALAU SALDO CUKUP) ===============
-    // Potong saldo terlebih dahulu sebelum melakukan pembayaran
-    DB::transaction(function () use ($user, $harga_jual) {
-        // Reload user with lock to prevent race conditions
-        $freshUser = \App\Models\User::where('id', $user->id)->lockForUpdate()->first();
-        $freshUser->saldo -= $harga_jual;
-        $freshUser->save();
-    });
+    // 💡 FIX: Jangan potong saldo dulu. Potong setelah dapat respon Sukses/Pending dari API.
 
     try {
         // Log the URL being called for debugging
@@ -704,10 +700,21 @@ class DigiflazController extends Controller
         // Update the pasca transaction status based on response
         $paymentStatus = $this->mapApiStatusToEnum($data['status'] ?? 'failed');
 
+        // 💰 BIG FIX: Potong saldo HANYA JIKA respon API adalah Sukses atau Pending
+        if ($data && in_array($data['status'], ['Sukses', 'Pending'])) {
+            DB::transaction(function () use ($user, $harga_jual) {
+                // Reload user with lock to prevent race conditions
+                $freshUser = \App\Models\User::where('id', $user->id)->lockForUpdate()->first();
+                $freshUser->saldo -= $harga_jual;
+                $freshUser->save();
+            });
+        }
+
         // Update the payment status and message
         $pascaTransaction->update([
             'status_payment' => $paymentStatus,
             'message_payment' => $data['message'] ?? 'Pembayaran gagal',
+            'amount_total' => $data['selling_price'] ?? $harga_jual,
         ]);
 
         // Insert transaksi pasca
@@ -719,30 +726,12 @@ class DigiflazController extends Controller
                 $user->id,
                 $harga_jual
             );
-
-            // If the payment status is failed, refund the balance
-            if ($paymentStatus === 'failed') {
-                DB::transaction(function () use ($user, $harga_jual) {
-                    // Reload user with lock to prevent race conditions
-                    $freshUser = \App\Models\User::where('id', $user->id)->lockForUpdate()->first();
-                    $freshUser->saldo += $harga_jual;
-                    $freshUser->save();
-                });
-            }
         } else {
             // If API response is empty, update the transaction status to failed
             $pascaTransaction->update([
                 'status_payment' => 'failed',
                 'message_payment' => 'Gagal mendapatkan respons dari server',
             ]);
-
-            // Refund the balance since payment failed
-            DB::transaction(function () use ($user, $harga_jual) {
-                // Reload user to ensure we have a fresh model instance
-                $freshUser = \App\Models\User::findOrFail($user->id);
-                $freshUser->saldo += $harga_jual;
-                $freshUser->save();
-            });
         }
     } catch (\Exception $e) {
         // Log the actual error for debugging
@@ -753,14 +742,7 @@ class DigiflazController extends Controller
             'ref_id' => $payment_ref_id
         ]);
 
-        // If there's an exception during API call, refund the balance
-        DB::transaction(function () use ($user, $harga_jual) {
-            // Reload user with lock to prevent race conditions
-            $freshUser = \App\Models\User::where('id', $user->id)->lockForUpdate()->first();
-            $freshUser->saldo += $harga_jual;
-            $freshUser->save();
-        });
-
+        // 💡 FIX: Tidak perlu refund di sini karena saldo belum dipotong.
         // Update the pasca transaction status to failed
         $pascaTransaction->update([
             'status_payment' => 'failed',

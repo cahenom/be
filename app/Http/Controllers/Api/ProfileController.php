@@ -121,8 +121,8 @@ class ProfileController extends Controller
                     'amount' => $amount,
                     'description' => 'Deposit to ' . $user->name . '\'s wallet',
                     'invoice_duration' => 86400, // 24 hours in seconds
-                    'success_redirect_url' => env('APP_URL', 'https://aeb871443259.ngrok-free.app') . '/deposit/success',
-                    'failure_redirect_url' => env('APP_URL', 'https://aeb871443259.ngrok-free.app') . '/deposit/failed',
+                    'success_redirect_url' => env('APP_URL') . '/deposit/success',
+                    'failure_redirect_url' => env('APP_URL') . '/deposit/failed',
                     'currency' => 'IDR',
                     'should_send_email' => false
                     // Removing payment_methods to use Xendit's default available payment methods
@@ -210,7 +210,7 @@ public function transactions(Request $request)
             'ref' => $transaction->transaction_code,
             'tujuan' => $transaction->transaction_number,
             'sku' => $transaction->transaction_sku,
-            'produk' => $transaction->product ? $transaction->product->product_name : null,
+            'produk' => $transaction->transaction_product_name ?: ($transaction->product ? $transaction->product->product_name : null),
             'status' => $transaction->transaction_status,
             'message' => $transaction->transaction_message,
             'price' => $transaction->transaction_total,  // Using transaction_total from transaction record

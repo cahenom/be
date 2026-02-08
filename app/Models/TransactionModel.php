@@ -25,24 +25,28 @@ class TransactionModel extends Model
         'transaction_message',
         'transaction_status',
         'transaction_sn',
+        'transaction_product_name',
+        'transaction_product_category',
         'transaction_user_id',
     ];
 
-    public function insert_transaction_data($data, $type, $provider, $user_id, $harga_jual)
+    public function insert_transaction_data($data, $type, $provider, $user_id, $harga_jual, $product_name = null, $product_category = null)
     {
         return self::create([
-            'transaction_code'     => $data['ref_id'],
-            'transaction_date'     => now()->format('Y-m-d'),
-            'transaction_time'     => now()->format('H:i:s'),
-            'transaction_type'     => $type,
-            'transaction_provider' => $provider,
-            'transaction_number'   => $data['customer_no'],
-            'transaction_sku'      => $data['buyer_sku_code'],
-            'transaction_total'    => $harga_jual,    // <===== HARGA JUAL, BUKAN DARI DIGIFLAZZ
-            'transaction_message'  => $data['message'],
-            'transaction_status'   => $data['status'],
-            'transaction_sn'       => $data['sn'] ?? null,  // Add SN field
-            'transaction_user_id'  => $user_id
+            'transaction_code'             => $data['ref_id'],
+            'transaction_date'             => now()->format('Y-m-d'),
+            'transaction_time'             => now()->format('H:i:s'),
+            'transaction_type'             => $type,
+            'transaction_provider'         => $provider,
+            'transaction_number'           => $data['customer_no'],
+            'transaction_sku'              => $data['buyer_sku_code'],
+            'transaction_total'            => $harga_jual,    // <===== HARGA JUAL, BUKAN DARI DIGIFLAZZ
+            'transaction_message'          => $data['message'],
+            'transaction_status'           => $data['status'],
+            'transaction_sn'               => $data['sn'] ?? null,  // Add SN field
+            'transaction_product_name'     => $product_name,
+            'transaction_product_category' => $product_category,
+            'transaction_user_id'          => $user_id
         ]);
     }
 
@@ -93,6 +97,8 @@ class TransactionModel extends Model
             'ref' => $this->transaction_code,
             'tujuan' => $this->transaction_number,
             'sku' => $this->transaction_sku,
+            'produk' => $this->transaction_product_name ?: ($this->product ? $this->product->product_name : null),
+            'kategori' => $this->transaction_product_category ?: ($this->product ? $this->product->product_category : null),
             'status' => $this->transaction_status,
             'message' => $this->transaction_message,
             'price' => $this->transaction_total,
