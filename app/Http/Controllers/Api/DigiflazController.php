@@ -118,7 +118,7 @@ class DigiflazController extends Controller
 
     // Hitung harga
     $pricingService = new PricingService();
-    $roleId = (int)($user->role_id ?? 1);
+    $roleId = (int)($user->roles_id ?? 1);
     $harga_modal = (float)$product->product_seller_price;
 
     $harga_jual = $pricingService->applyMarkup(
@@ -286,6 +286,9 @@ class DigiflazController extends Controller
         ProductPrepaid::truncate();
 
         $this->model->insert_data($result['data']);
+        
+        // Force clear cache after update
+        ProductPrepaid::clearRelatedCache();
 
         return new ApiResponseResource([
             'status'  => 'success',
@@ -333,6 +336,9 @@ class DigiflazController extends Controller
         ProductPasca::truncate();
 
         $this->model_pasca->insert_data($result['data']);
+        
+        // Force clear cache after update
+        ProductPasca::clearRelatedCache();
 
         return new ApiResponseResource([
             'status'  => 'success',

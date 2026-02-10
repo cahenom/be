@@ -26,7 +26,7 @@ return new class extends Migration
 
     // ⬇ Default Pricing Settings (9 combinations: 3 Roles x 3 Tiers)
     $tiers = [
-        ['min' => 0,       'markups' => [1 => 500,  2 => 200,  3 => 0]],
+        ['min' => 0,       'markups' => [1 => 500,  2 => 300,  3 => 200]],
         ['min' => 700000,  'markups' => [1 => 1000, 2 => 700,  3 => 500]],
         ['min' => 1500000, 'markups' => [1 => 2000, 2 => 1700, 3 => 1500]],
     ];

@@ -19,7 +19,7 @@ class ProductController extends Controller
      * ------------------------------------------*/
     private function applyMarkupToProducts($products)
     {
-        $roleId = auth()->user()->role_id ?? 1;
+        $roleId = auth()->user()->roles_id ?? 1;
         $pricingService = new PricingService();
 
         return $products->map(function ($product) use ($pricingService, $roleId) {

@@ -48,6 +48,7 @@ class ProductPrepaid extends Model
     public static function clearRelatedCache()
     {
         // Clear all product-related cache
+        Cache::forget('products_data');
         Cache::forget('products_emoney');
         Cache::forget('products_games');
         Cache::forget('products_voucher');
@@ -56,8 +57,11 @@ class ProductPrepaid extends Model
         Cache::forget('products_masa_aktif');
         Cache::forget('product_categories');
 
-        // Note: We don't clear provider-specific caches here as they're more granular
-        // Those would need to be cleared individually when needed
+        // Clear pulsa cache for all providers
+        $providers = \App\Models\PrefixNumber::select('provider')->distinct()->get();
+        foreach ($providers as $provider) {
+            Cache::forget("products_pulsa_{$provider->provider}");
+        }
     }
 
     public function scopeFindProductBySKU($query, $value)
