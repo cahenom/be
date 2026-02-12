@@ -5,11 +5,10 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Services\FirebaseService;
-use Illuminate\Support\Facades\Log;
 
 class FirebaseController extends Controller
 {
-    protected FirebaseService $firebaseService;
+    protected $firebaseService;
 
     public function __construct(FirebaseService $firebaseService)
     {
@@ -17,7 +16,168 @@ class FirebaseController extends Controller
     }
 
     /**
-     * Save FCM token for authenticated user
+     * Kirim notifikasi ke semua user (admin only)
+     */
+    public function sendToAll(Request $request)
+    {
+        $request->validate([
+            'title' => 'required|string',
+            'body' => 'required|string'
+        ]);
+
+        // Ambil semua user dengan token
+        $users = User::whereNotNull('fcm_token')
+            ->where('fcm_token', '!=', '')
+            ->get();
+
+        if ($users->isEmpty()) {
+            return response()->json(['error' => 'No users with FCM tokens'], 400);
+        }
+
+        $result = $this->firebaseService->sendNotificationToUsers(
+            $users->all(),  // Kirim array User objects
+            $request->title,
+            $request->body
+        );
+
+        // Gunakan hasil dengan aman
+        if ($result['success']) {
+            return response()->json([
+                'message' => 'Notification sent to ' . ($result['success_count'] ?? 0) . ' users',
+                'data' => $result
+            ]);
+        }
+
+        return response()->json([
+            'error' => 'Failed to send notification',
+            'details' => $result['error'] ?? 'Unknown error',
+            'data' => $result
+        ], 500);
+    }
+
+    /**
+     * Kirim notifikasi ke beberapa user (admin only)
+     */
+    public function sendToMultiple(Request $request)
+    {
+        $request->validate([
+            'title' => 'required|string',
+            'body' => 'required|string',
+            'user_ids' => 'required|array',
+            'user_ids.*' => 'exists:users,id'
+        ]);
+
+        // Ambil user berdasarkan IDs
+        $users = User::whereIn('id', $request->user_ids)
+            ->whereNotNull('fcm_token')
+            ->where('fcm_token', '!=', '')
+            ->get();
+
+        if ($users->isEmpty()) {
+            return response()->json(['error' => 'No valid users with FCM tokens'], 400);
+        }
+
+        $result = $this->firebaseService->sendNotificationToUsers(
+            $users->all(),
+            $request->title,
+            $request->body
+        );
+
+        if ($result['success']) {
+            return response()->json([
+                'message' => 'Notification sent to ' . ($result['success_count'] ?? 0) . ' users',
+                'data' => $result
+            ]);
+        }
+
+        return response()->json([
+            'error' => 'Failed to send notification',
+            'details' => $result['error'] ?? 'Unknown error'
+        ], 500);
+    }
+
+    /**
+     * Versi alternatif: Kirim langsung dengan token (lebih sederhana)
+     */
+    public function sendBulkByTokens(Request $request)
+    {
+        $request->validate([
+            'title' => 'required|string',
+            'body' => 'required|string',
+            'user_ids' => 'nullable|array',
+            'user_ids.*' => 'exists:users,id'
+        ]);
+
+        // Ambil token langsung
+        $tokens = User::when($request->user_ids, function($query) use ($request) {
+                return $query->whereIn('id', $request->user_ids);
+            })
+            ->whereNotNull('fcm_token')
+            ->where('fcm_token', '!=', '')
+            ->pluck('fcm_token')
+            ->toArray();
+
+        if (empty($tokens)) {
+            return response()->json(['error' => 'No valid FCM tokens found'], 400);
+        }
+
+        // Kirim langsung dengan tokens (tanpa user objects)
+        $result = $this->firebaseService->sendNotification(
+            $tokens,
+            $request->title,
+            $request->body
+        );
+
+        if ($result['success']) {
+            return response()->json([
+                'message' => 'Notification sent to ' . ($result['success_count'] ?? 0) . ' users',
+                'data' => $result
+            ]);
+        }
+
+        return response()->json([
+            'error' => 'Failed to send notification',
+            'details' => $result['error'] ?? 'Unknown error'
+        ], 500);
+    }
+
+    /**
+     * Test notification to current user
+     */
+    public function sendTestNotification(Request $request)
+    {
+        $request->validate([
+            'title' => 'required|string',
+            'body' => 'required|string'
+        ]);
+
+        $user = $request->user();
+        
+        if (!$user) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $result = $this->firebaseService->sendNotificationToUser(
+            $user,
+            $request->title,
+            $request->body
+        );
+
+        if ($result['success']) {
+            return response()->json([
+                'message' => 'Test notification sent',
+                'data' => $result
+            ]);
+        }
+
+        return response()->json([
+            'error' => 'Failed to send notification',
+            'details' => $result['error'] ?? 'Unknown error'
+        ], 500);
+    }
+
+    /**
+     * Simpan token FCM
      */
     public function saveToken(Request $request)
     {
@@ -26,93 +186,35 @@ class FirebaseController extends Controller
         ]);
 
         $user = $request->user();
-
+        
         if (!$user) {
-            return response()->json(['error' => 'User not authenticated'], 401);
+            return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        $user->updateFcmToken($request->fcm_token);
+        $user->fcm_token = $request->fcm_token;
+        $user->save();
 
         return response()->json([
-            'message' => 'FCM token saved successfully',
-            'fcm_token' => $request->fcm_token
+            'message' => 'Token saved successfully'
         ]);
     }
 
     /**
-     * Send test notification to authenticated user
+     * Hapus token FCM
      */
-    public function sendTestNotification(Request $request)
+    public function removeToken(Request $request)
     {
         $user = $request->user();
-
+        
         if (!$user) {
-            return response()->json(['error' => 'User not authenticated'], 401);
+            return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        $fcmToken = $user->getFcmToken();
+        $user->fcm_token = null;
+        $user->save();
 
-        if (!$fcmToken) {
-            return response()->json(['error' => 'User does not have an FCM token'], 400);
-        }
-
-        $result = $this->firebaseService->sendNotificationToUser(
-            $user,
-            'Test Notification',
-            'This is a test notification from your Laravel app!',
-            ['type' => 'test_notification']
-        );
-
-        if ($result['success']) {
-            return response()->json([
-                'message' => 'Notification sent successfully',
-                'result' => $result
-            ]);
-        } else {
-            Log::error('FCM Error: ' . $result['error']);
-            return response()->json([
-                'error' => 'Failed to send notification',
-                'details' => $result['error']
-            ], 500);
-        }
-    }
-
-    /**
-     * Send notification to multiple users
-     */
-    public function sendBulkNotification(Request $request)
-    {
-        $request->validate([
-            'user_ids' => 'required|array',
-            'user_ids.*' => 'integer|exists:users,id',
-            'title' => 'required|string',
-            'body' => 'required|string',
+        return response()->json([
+            'message' => 'Token removed successfully'
         ]);
-
-        $users = User::whereIn('id', $request->user_ids)->get();
-
-        if ($users->isEmpty()) {
-            return response()->json(['error' => 'No valid users found'], 400);
-        }
-
-        $result = $this->firebaseService->sendNotificationToUsers(
-            $users,
-            $request->title,
-            $request->body,
-            ['type' => 'bulk_notification']
-        );
-
-        if ($result['success']) {
-            return response()->json([
-                'message' => 'Notifications sent successfully',
-                'result' => $result
-            ]);
-        } else {
-            Log::error('FCM Bulk Error: ' . $result['error']);
-            return response()->json([
-                'error' => 'Failed to send notifications',
-                'details' => $result['error']
-            ], 500);
-        }
     }
 }

@@ -51,6 +51,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/get-product-prepaid', 'get_product_prepaid');
         Route::post('/get-product-pasca', 'get_product_pasca');
     });
+    Route::middleware('admin')->prefix('admin')->group(function () {
+        Route::post('/fcm/all', [FirebaseController::class, 'sendToAll']);
+        Route::post('/fcm/multiple', [FirebaseController::class, 'sendToMultiple']);
+        Route::post('/fcm/bulk', [FirebaseController::class, 'sendBulkByTokens']);
+    });
 
     Route::controller(DigiflazController::class)->prefix('order')->group(function () {
         Route::post('/topup', 'digiflazTopup');

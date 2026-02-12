@@ -15,7 +15,6 @@ class FirebaseService
         if ($messaging) {
             $this->messaging = $messaging;
         } else {
-            // Get from service container if not injected
             $this->messaging = app('firebase.messaging');
         }
     }
@@ -25,7 +24,7 @@ class FirebaseService
      */
     public function sendNotificationToUser(User $user, string $title, string $body, array $data = []): array
     {
-        $fcmToken = $user->getFcmToken();
+        $fcmToken = $user->fcm_token ?? $user->getFcmToken();
 
         if (!$fcmToken) {
             throw new \Exception("User does not have an FCM token");
@@ -42,7 +41,7 @@ class FirebaseService
         $tokens = [];
 
         foreach ($users as $user) {
-            $fcmToken = $user->getFcmToken();
+            $fcmToken = $user->fcm_token ?? $user->getFcmToken();
             if ($fcmToken) {
                 $tokens[] = $fcmToken;
             }
@@ -60,12 +59,27 @@ class FirebaseService
      */
     public function sendNotification(array $tokens, string $title, string $body, array $data = []): array
     {
-        // Convert all values to strings as FCM requires string values
+        // Pastikan tokens adalah array
+        if (!is_array($tokens)) {
+            $tokens = [$tokens];
+        }
+
+        // Filter token yang valid
+        $tokens = array_filter($tokens, function($token) {
+            return !empty($token) && is_string($token) && trim($token) !== '';
+        });
+
+        if (empty($tokens)) {
+            return [
+                'success' => false,
+                'error' => 'No valid tokens provided'
+            ];
+        }
+
+        // Convert data values to strings
         $processedData = [];
         foreach ($data as $key => $value) {
-            if (is_array($value)) {
-                $processedData[$key] = json_encode($value);
-            } elseif (is_object($value)) {
+            if (is_array($value) || is_object($value)) {
                 $processedData[$key] = json_encode($value);
             } else {
                 $processedData[$key] = (string) $value;
@@ -78,15 +92,34 @@ class FirebaseService
 
         try {
             $response = $this->messaging->sendMulticast($message, $tokens);
-            // Just return success without parsing response details
+            
+            // Hitung hasil yang berhasil dan gagal
+            $successCount = $response->successes()->count();
+            $failureCount = $response->failures()->count();
+            
             return [
-                'success' => true,
-                'message' => 'Notifications sent successfully',
+                'success' => $successCount > 0,
+                'success_count' => $successCount,
+                'failure_count' => $failureCount,
+                'total' => count($tokens),
+                'message' => $successCount > 0 ? 'Notifications sent successfully' : 'All notifications failed'
             ];
+            
         } catch (MessagingException $e) {
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
+                'success_count' => 0,
+                'failure_count' => count($tokens),
+                'total' => count($tokens)
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'success_count' => 0,
+                'failure_count' => count($tokens),
+                'total' => count($tokens)
             ];
         }
     }
@@ -96,7 +129,7 @@ class FirebaseService
      */
     public function subscribeToTopic(User $user, string $topic): array
     {
-        $fcmToken = $user->getFcmToken();
+        $fcmToken = $user->fcm_token ?? $user->getFcmToken();
 
         if (!$fcmToken) {
             throw new \Exception("User does not have an FCM token");
@@ -121,7 +154,7 @@ class FirebaseService
      */
     public function unsubscribeFromTopic(User $user, string $topic): array
     {
-        $fcmToken = $user->getFcmToken();
+        $fcmToken = $user->fcm_token ?? $user->getFcmToken();
 
         if (!$fcmToken) {
             throw new \Exception("User does not have an FCM token");
