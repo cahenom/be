@@ -25,35 +25,40 @@ class FirebaseController extends Controller
             'body' => 'required|string'
         ]);
 
-        // Ambil semua user dengan token
-        $users = User::whereNotNull('fcm_token')
-            ->where('fcm_token', '!=', '')
-            ->get();
+        $successCount = 0;
+        $failureCount = 0;
+        $totalUsers = 0;
 
-        if ($users->isEmpty()) {
+        // Ambil semua user dengan token secara bertahap (chunking)
+        User::whereNotNull('fcm_token')
+            ->where('fcm_token', '!=', '')
+            ->chunk(500, function ($users) use ($request, &$successCount, &$failureCount, &$totalUsers) {
+                $result = $this->firebaseService->sendNotificationToUsers(
+                    $users->all(),
+                    $request->title,
+                    $request->body
+                );
+
+                $successCount += $result['success_count'] ?? 0;
+                $failureCount += $result['failure_count'] ?? 0;
+                $totalUsers += count($users);
+            });
+
+        if ($totalUsers === 0) {
             return response()->json(['error' => 'No users with FCM tokens'], 400);
         }
 
-        $result = $this->firebaseService->sendNotificationToUsers(
-            $users->all(),  // Kirim array User objects
-            $request->title,
-            $request->body
-        );
-
-        // Gunakan hasil dengan aman
-        if ($result['success']) {
-            return response()->json([
-                'message' => 'Notification sent to ' . ($result['success_count'] ?? 0) . ' users',
-                'data' => $result
-            ]);
-        }
-
         return response()->json([
-            'error' => 'Failed to send notification',
-            'details' => $result['error'] ?? 'Unknown error',
-            'data' => $result
-        ], 500);
+            'message' => 'Notification processed for ' . $totalUsers . ' users',
+            'data' => [
+                'success' => $successCount > 0,
+                'success_count' => $successCount,
+                'failure_count' => $failureCount,
+                'total' => $totalUsers
+            ]
+        ]);
     }
+
 
     /**
      * Kirim notifikasi ke beberapa user (admin only)

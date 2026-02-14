@@ -199,6 +199,26 @@ class DigiflazController extends Controller
 
     // Potong saldo jika sukses/pending
     if ($data && in_array($data['status'], ['Sukses', 'Pending'])) {
+        // 🔒 CONSISTENCY CHECK: Ensure the response data matches our request
+        // Digiflazz ref_id collision can return old data for a different target/sku
+        $respCustomerNo = $data['customer_no'] ?? '';
+        $respSku = $data['buyer_sku_code'] ?? '';
+
+        if ($respCustomerNo !== $request->customer_no || $respSku !== $request->sku) {
+            Log::error('Digiflazz Response Mismatch (RefID Collision?):', [
+                'expected' => ['no' => $request->customer_no, 'sku' => $request->sku],
+                'received' => ['no' => $respCustomerNo, 'sku' => $respSku],
+                'ref_id' => $ref_id
+            ]);
+
+            return new ApiResponseResource([
+                'status'  => 'error',
+                'message' => 'Terjadi gangguan sistem (ID Collision). Silakan coba lagi.',
+                'data'    => null,
+                'code'    => 400
+            ]);
+        }
+
         DB::transaction(function () use ($user, $harga_jual) {
             // Reload user with lock to prevent race conditions
             $freshUser = \App\Models\User::where('id', $user->id)->lockForUpdate()->first();
@@ -708,6 +728,25 @@ class DigiflazController extends Controller
 
         // 💰 BIG FIX: Potong saldo HANYA JIKA respon API adalah Sukses atau Pending
         if ($data && in_array($data['status'], ['Sukses', 'Pending'])) {
+            // 🔒 CONSISTENCY CHECK: Ensure the response data matches our request
+            $respCustomerNo = $data['customer_no'] ?? '';
+            $respSku = $data['buyer_sku_code'] ?? '';
+
+            if ($respCustomerNo !== $request->customer_no || $respSku !== $sku) {
+                Log::error('Digiflazz Pasca Response Mismatch (RefID Collision?):', [
+                    'expected' => ['no' => $request->customer_no, 'sku' => $sku],
+                    'received' => ['no' => $respCustomerNo, 'sku' => $respSku],
+                    'ref_id' => $payment_ref_id
+                ]);
+
+                return new ApiResponseResource([
+                    'status'  => 'error',
+                    'message' => 'Terjadi gangguan sistem (ID Collision). Silakan coba lagi.',
+                    'data'    => null,
+                    'code'    => 400
+                ]);
+            }
+
             DB::transaction(function () use ($user, $harga_jual) {
                 // Reload user with lock to prevent race conditions
                 $freshUser = \App\Models\User::where('id', $user->id)->lockForUpdate()->first();
