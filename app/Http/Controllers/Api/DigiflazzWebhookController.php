@@ -253,8 +253,8 @@ class DigiflazzWebhookController extends Controller
                 $productName = $this->getProductName($data['buyer_sku_code'] ?? '', $postpaidTrx ? 'Pasca' : 'Prepaid');
 
                 // Create notification message
-                $title = 'Pembelian Selesai';
-                $body = "Pembelian {$productName} ({$data['status']}) selesai";
+                $title = 'Status Pembelian';
+                $body = "Pembelian {$productName} {$data['status']}";
 
                 // Send notification to user
                 $result = $this->firebaseService->sendNotificationToUser(

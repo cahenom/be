@@ -31,8 +31,10 @@ class ProfileController extends Controller
         if ($request->isMethod('post') && count($request->all()) > 0) {
 
             $validated = $request->validate([
-                'name'      => 'sometimes|string|max:100',
-                'email'     => 'sometimes|email|unique:users,email,' . $user->id,
+                'name'      => ['sometimes', 'string', 'max:100', 'regex:/^[a-zA-Z0-9\s.\-]+$/'],
+                'email'     => 'sometimes|email|max:255|unique:users,email,' . $user->id,
+            ], [
+                'name.regex' => 'Nama hanya boleh mengandung huruf, angka, spasi, titik, dan strip.',
             ]);
 
             $user->update($validated);

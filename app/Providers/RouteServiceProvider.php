@@ -28,6 +28,16 @@ class RouteServiceProvider extends ServiceProvider
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
         });
 
+        RateLimiter::for('auth', function (Request $request) {
+            return Limit::perMinute(5)->by($request->ip())->response(function () {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Terlalu banyak percobaan. Silakan coba lagi nanti.',
+                    'data' => null
+                ], 429);
+            });
+        });
+
         RateLimiter::for('product', function (Request $request) {
             return Limit::perMinute(100)->by($request->user()?->id ?: $request->ip() . $request->path());
         });

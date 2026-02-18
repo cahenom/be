@@ -778,8 +778,8 @@ footer {
         </nav>
 
         <div class="nav-actions">
-            <button class="btn-text">Masuk</button>
-            <button class="btn-primary">Daftar Sekarang</button>
+            
+            <a href="https://play.google.com/store/apps/details?id=com.saldoplus.plus&pli=1" class="btn-primary">Daftar Sekarang</a>
         </div>
     </div>
 </header>
@@ -806,20 +806,22 @@ footer {
             </p>
 
             <div class="download-buttons">
-                <div class="store-btn">
-                    <span class="material-symbols-outlined store-icon">ios</span>
-                    <div>
-                        <p class="store-small">Download on the</p>
-                        <p class="store-big">App Store</p>
-                    </div>
-                </div>
+               
 
-                <div class="store-btn">
-                    <div>
-                        <p class="store-small">Get it on</p>
-                        <p class="store-big">Google Play</p>
-                    </div>
-                </div>
+                <a href="https://play.google.com/store/apps/details?id=com.saldoplus.plus&pli=1" 
+   target="_blank" 
+   rel="noopener noreferrer" 
+   style="text-decoration: none; color: inherit;">
+    
+    <div class="store-btn">
+        <div>
+            <p class="store-small">Get it on</p>
+            <p class="store-big">Google Play</p>
+        </div>
+    </div>
+
+</a>
+
             </div>
 
             <div class="stats">

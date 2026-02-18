@@ -505,7 +505,6 @@ class DigiflazController extends Controller
                 'customer_name' => $data['customer_name'] ?? null,
                 'status' => $data['status'] ?? 'failed',
                 'message' => $data['message'] ?? null,
-                'price' => $data['price'] ?? 0,
                 'selling_price' => $data['selling_price'] ?? 0,
                 'admin' => $data['admin'] ?? 0,
                 'periode' => $data['periode'] ?? null,

@@ -17,10 +17,12 @@ class AuthController extends Controller
     public function AuthRegister(Request $request)
     {
         $request->validate([
-            'name' => 'required|string|max:100',
-            'email' => 'required|email|unique:users,email',
-            'password' => 'required|min:6|confirmed',
-            'fcm_token' => 'nullable|string' // Add validation for FCM token
+            'name' => ['required', 'string', 'max:100', 'regex:/^[a-zA-Z0-9\s.\-]+$/'],
+            'email' => 'required|email|max:255|unique:users,email',
+            'password' => 'required|string|min:6|max:255|confirmed',
+            'fcm_token' => 'nullable|string'
+        ], [
+            'name.regex' => 'Nama hanya boleh mengandung huruf, angka, spasi, titik, dan strip.',
         ]);
 
         $user = User::create([
@@ -50,9 +52,9 @@ class AuthController extends Controller
     public function AuthLogin(Request $request)
     {
         $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
-            'fcm_token' => 'nullable|string' // Add validation for FCM token
+            'email' => 'required|email|max:255',
+            'password' => 'required|string|min:6|max:255',
+            'fcm_token' => 'nullable|string'
         ]);
 
         $credentials = $request->only('email', 'password');

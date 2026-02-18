@@ -7,9 +7,12 @@ use App\Http\Controllers\Api\XenditController;
 use App\Http\Controllers\Api\MerchantController;
 use App\Http\Controllers\Api\PaymentRequestController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\AppConfigController;
 use App\Http\Controllers\FirebaseController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+
+Route::get('/app-config/version-check', [AppConfigController::class, 'versionCheck'])->name('app-config.version-check');
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -25,14 +28,10 @@ use Illuminate\Support\Facades\Route;
 Route::post('/digiflazz/webhook', [\App\Http\Controllers\Api\DigiflazzWebhookController::class, 'handle']);
 Route::post('/xendit/webhook', [\App\Http\Controllers\Api\XenditWebhookController::class, 'handle']);
 
-Route::post(
-    '/auth/login',
-    [AuthController::class, 'AuthLogin']
-);
-Route::post(
-    '/auth/register',
-    [AuthController::class, 'AuthRegister']
-);
+Route::middleware('throttle:auth')->group(function () {
+    Route::post('/auth/login', [AuthController::class, 'AuthLogin']);
+    Route::post('/auth/register', [AuthController::class, 'AuthRegister']);
+});
 
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::post(

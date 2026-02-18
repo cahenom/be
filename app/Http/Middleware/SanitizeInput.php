@@ -21,6 +21,12 @@ class SanitizeInput
             if (is_string($value)) {
                 $value = trim($value);
 
+                // Sanitize auth-related string fields (prevent XSS/injection in stored data)
+                if (in_array($key, ['email', 'name'])) {
+                    $value = strip_tags($value);
+                    $value = htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+                }
+
                 // Sanitize common numeric target fields (phones, customer numbers, etc.)
                 if (in_array($key, ['customer_no', 'destination', 'target', 'phone', 'nomor'])) {
                     $value = preg_replace('/[^0-9]/', '', $value);
