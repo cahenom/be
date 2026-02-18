@@ -225,6 +225,27 @@ class ProductController extends Controller
         ]);
     }
 
+
+
+    public function streaming()
+    {
+        $products = $this->applyMarkupToProducts(
+            Cache::remember('products_streaming', 1800, function () { // Cache for 30 minutes
+                return ProductPrepaid::where('product_category', 'streaming')->get();
+            })
+        );
+
+        return new ApiResponseResource([
+            'status' => 'success',
+            'ref_id' => null,
+            'message' => 'Daftar streaming ditemukan',
+            'data' => [
+                'streaming' => ProductResource::collection($products)
+            ]
+        ]);
+    }
+
+
     /* -----------------------------------------
         CATEGORY LIST
     ------------------------------------------*/

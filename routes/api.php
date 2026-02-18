@@ -77,7 +77,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/pdam', 'pdam');            // Get PDAM products
         Route::post('/internet', 'internet'); // Get internet products
         Route::post('/bpjs', 'bpjs'); // Get BPJS products
-    });
+        Route::post('/sms', 'sms');
+        Route::post('/streaming', 'streaming');
+        });
 
     // Firebase Cloud Messaging routes
     Route::post('/fcm/token', [FirebaseController::class, 'saveToken']);
