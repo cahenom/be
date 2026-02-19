@@ -12,6 +12,29 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($user) {
+            if (empty($user->referral_code)) {
+                $user->referral_code = static::generateUniqueReferralCode($user->name);
+            }
+        });
+    }
+
+    public static function generateUniqueReferralCode($name)
+    {
+        $base = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $name), 0, 4));
+        if (strlen($base) < 3) $base = "USER";
+        
+        do {
+            $code = $base . rand(100, 999);
+        } while (static::where('referral_code', $code)->exists());
+
+        return $code;
+    }
+
     /**
      * The attributes that are mass assignable.
      *
@@ -24,6 +47,8 @@ class User extends Authenticatable
         'saldo',
         'password',
         'fcm_token',
+        'referral_code',
+        'referred_by',
     ];
 
     /**
@@ -84,5 +109,21 @@ class User extends Authenticatable
     public function deposits()
     {
         return $this->hasMany(\App\Models\Deposit::class, 'user_id');
+    }
+
+    /**
+     * Get the referrer of the user.
+     */
+    public function referrer()
+    {
+        return $this->belongsTo(User::class, 'referred_by');
+    }
+
+    /**
+     * Get the referees of the user.
+     */
+    public function referees()
+    {
+        return $this->hasMany(User::class, 'referred_by');
     }
 }

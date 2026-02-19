@@ -33,6 +33,8 @@ Route::middleware('throttle:auth')->group(function () {
     Route::post('/auth/register', [AuthController::class, 'AuthRegister']);
 });
 
+Route::middleware(['auth:sanctum'])->post('/auth/refresh', [AuthController::class, 'AuthRefresh']);
+
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::post(
         '/auth/logout',
@@ -44,6 +46,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/deposit', 'deposit');
         Route::post('/transaksi', 'transactions');
         Route::post('/balance', 'balance');
+        Route::post('/upgrade-reseller', 'upgradeToReseller');
     });
 
     Route::middleware(['admin'])->controller(DigiflazController::class)->prefix('admin')->group(function () {

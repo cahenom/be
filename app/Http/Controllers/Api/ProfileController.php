@@ -168,98 +168,151 @@ class ProfileController extends Controller
     }
 
     /**
- * Ambil transaksi user (termasuk transaksi pasca bayar dan permintaan pembayaran)
- */
-public function transactions(Request $request)
-{
-    $user = $request->user(); // Sanctum auto detect
+     * Ambil transaksi user (termasuk transaksi pasca bayar dan permintaan pembayaran)
+     */
+    public function transactions(Request $request)
+    {
+        $user = $request->user(); // Sanctum auto detect
 
-    if (!$user) {
+        if (!$user) {
+            return new ApiResponseResource([
+                'status' => false,
+                'message' => 'Unauthenticated.',
+                'data' => null,
+            ], 401);
+        }
+
+        // Ambil 20 transaksi terbaru user dari transaction table (more than needed for combination)
+        $regularTransactions = TransactionModel::where('transaction_user_id', $user->id)
+                                               ->with(['user', 'product']) // Eager load relasi user dan product untuk menghindari N+1 query
+                                                ->orderBy('created_at', 'desc')
+                                                ->limit(20)
+                                                ->get();
+                                               // ->remember(300) // Cache for 5 minutes - commented out for dynamic data
+
+        // Ambil 20 transaksi pasca bayar terbaru dari pasca_transactions table (more than needed for combination)
+        $pascaTransactions = PascaTransaction::where('user_id', $user->id)
+                                                ->with('product') // Eager load relasi product untuk menghindari N+1 query
+                                                ->orderBy('created_at', 'desc')
+                                                ->limit(20)
+                                             ->get(); // PascaTransaction tidak memiliki relasi user jadi tidak perlu eager loading
+
+        // Ambil 20 permintaan pembayaran terbaru dari payment_requests table
+        $paymentRequests = \App\Models\PaymentRequest::where('user_id', $user->id)
+                                                     ->with('user') // Eager load relasi user untuk menghindari N+1 query
+                                                     ->orderBy('created_at', 'desc')
+                                                     ->limit(20)
+                                                     ->get();
+
+        // Gabungkan ketiga koleksi dan urutkan berdasarkan created_at terbaru
+        $allTransactions = collect();
+
+        foreach ($regularTransactions as $transaction) {
+            $allTransactions->push([
+                'ref' => $transaction->transaction_code,
+                'tujuan' => $transaction->transaction_number,
+                'sku' => $transaction->transaction_sku,
+                'produk' => $transaction->transaction_product_name ?: ($transaction->product ? $transaction->product->product_name : null),
+                'status' => $transaction->transaction_status,
+                'message' => $transaction->transaction_message,
+                'price' => $transaction->transaction_total,  // Using transaction_total from transaction record
+                'sn' => $transaction->transaction_sn, // Use the SN field if available
+                'type' => 'prepaid',
+                'created_at' => $transaction->created_at,
+            ]);
+        }
+
+        foreach ($pascaTransactions as $transaction) {
+            $allTransactions->push([
+                'ref' => $transaction->ref_id,
+                'tujuan' => $transaction->customer_no,
+                'sku' => $transaction->sku_code,
+                'nama_produk' => $transaction->product ? $transaction->product->product_name : null,
+                'status' => $transaction->status_payment ?: $transaction->status_inquiry,
+                'message' => $transaction->message_payment ?: $transaction->message_inquiry,
+                'price' => $transaction->amount_total,  // Using amount_total which should be the selling_price equivalent
+                'sn' => $transaction->sn, // Use the SN field from pasca transaction
+                'type' => 'postpaid',
+                'created_at' => $transaction->created_at,
+            ]);
+        }
+
+        // Tambahkan permintaan pembayaran ke dalam daftar transaksi
+        foreach ($paymentRequests as $request) {
+            $allTransactions->push([
+                'ref' => $request->external_id,
+                'tujuan' => $request->destination,
+                'sku' => 'MERCHANT_REQUEST',
+                'status' => $request->status,
+                'message' => 'Payment request from ' . $request->name,
+                'price' => $request->price,
+                'sn' => null,
+                'type' => 'merchant_request',
+                'created_at' => $request->created_at,
+                'internal_id' => $request->id, // Tambahkan ID internal untuk digunakan di frontend
+            ]);
+        }
+
+        // Urutkan semua transaksi berdasarkan created_at terbaru, lalu ambil 10 teratas
+        $allTransactions = $allTransactions->sortByDesc('created_at')->take(10)->values();
+
         return new ApiResponseResource([
-            'status' => false,
-            'message' => 'Unauthenticated.',
-            'data' => null,
-        ], 401);
-    }
-
-    // Ambil 20 transaksi terbaru user dari transaction table (more than needed for combination)
-    $regularTransactions = TransactionModel::where('transaction_user_id', $user->id)
-                                           ->with(['user', 'product']) // Eager load relasi user dan product untuk menghindari N+1 query
-                                            ->orderBy('created_at', 'desc')
-                                            ->limit(20)
-                                            ->get();
-                                           // ->remember(300) // Cache for 5 minutes - commented out for dynamic data
-
-    // Ambil 20 transaksi pasca bayar terbaru dari pasca_transactions table (more than needed for combination)
-    $pascaTransactions = PascaTransaction::where('user_id', $user->id)
-                                            ->with('product') // Eager load relasi product untuk menghindari N+1 query
-                                            ->orderBy('created_at', 'desc')
-                                            ->limit(20)
-                                         ->get(); // PascaTransaction tidak memiliki relasi user jadi tidak perlu eager loading
-
-    // Ambil 20 permintaan pembayaran terbaru dari payment_requests table
-    $paymentRequests = \App\Models\PaymentRequest::where('user_id', $user->id)
-                                                 ->with('user') // Eager load relasi user untuk menghindari N+1 query
-                                                 ->orderBy('created_at', 'desc')
-                                                 ->limit(20)
-                                                 ->get();
-
-    // Gabungkan ketiga koleksi dan urutkan berdasarkan created_at terbaru
-    $allTransactions = collect();
-
-    foreach ($regularTransactions as $transaction) {
-        $allTransactions->push([
-            'ref' => $transaction->transaction_code,
-            'tujuan' => $transaction->transaction_number,
-            'sku' => $transaction->transaction_sku,
-            'produk' => $transaction->transaction_product_name ?: ($transaction->product ? $transaction->product->product_name : null),
-            'status' => $transaction->transaction_status,
-            'message' => $transaction->transaction_message,
-            'price' => $transaction->transaction_total,  // Using transaction_total from transaction record
-            'sn' => $transaction->transaction_sn, // Use the SN field if available
-            'type' => 'prepaid',
-            'created_at' => $transaction->created_at,
+            'status'  => true,
+            'message' => 'User transactions berhasil didapatkan.',
+            'data'    => $allTransactions,
         ]);
     }
 
-    foreach ($pascaTransactions as $transaction) {
-        $allTransactions->push([
-            'ref' => $transaction->ref_id,
-            'tujuan' => $transaction->customer_no,
-            'sku' => $transaction->sku_code,
-            'nama_produk' => $transaction->product ? $transaction->product->product_name : null,
-            'status' => $transaction->status_payment ?: $transaction->status_inquiry,
-            'message' => $transaction->message_payment ?: $transaction->message_inquiry,
-            'price' => $transaction->amount_total,  // Using amount_total which should be the selling_price equivalent
-            'sn' => $transaction->sn, // Use the SN field from pasca transaction
-            'type' => 'postpaid',
-            'created_at' => $transaction->created_at,
+    /**
+     * Upgrade user to Reseller level (Role ID 2) for 200,000 saldo
+     */
+    public function upgradeToReseller(Request $request)
+    {
+        $user = Auth::user();
+
+        if (!$user) {
+            return new ApiResponseResource([
+                'status' => 'error',
+                'message' => 'Unauthenticated.',
+                'data' => null,
+            ], 401);
+        }
+
+        // Check if already a reseller or higher
+        if ((int)$user->roles_id === 2) {
+            return new ApiResponseResource([
+                'status' => 'error',
+                'message' => 'Anda sudah menjadi Reseller.',
+                'data' => null
+            ], 400);
+        }
+
+        if ((int)$user->roles_id === 3) {
+            return new ApiResponseResource([
+                'status' => 'error',
+                'message' => 'Anda adalah Admin/Agen.',
+                'data' => null
+            ], 400);
+        }
+
+        $cost = 200000;
+        if ($user->saldo < $cost) {
+            return new ApiResponseResource([
+                'status' => 'error',
+                'message' => 'Saldo tidak cukup. Dibutuhkan Rp ' . number_format($cost, 0, ',', '.'),
+                'data' => null
+            ], 400);
+        }
+
+        // Deduct balance and upgrade role
+        $user->saldo -= $cost;
+        $user->roles_id = 2;
+        $user->save();
+
+        return new ApiResponseResource([
+            'status' => 'success',
+            'message' => 'Selamat! Anda berhasil upgrade ke Reseller.',
+            'data' => $user
         ]);
     }
-
-    // Tambahkan permintaan pembayaran ke dalam daftar transaksi
-    foreach ($paymentRequests as $request) {
-        $allTransactions->push([
-            'ref' => $request->external_id,
-            'tujuan' => $request->destination,
-            'sku' => 'MERCHANT_REQUEST',
-            'status' => $request->status,
-            'message' => 'Payment request from ' . $request->name,
-            'price' => $request->price,
-            'sn' => null,
-            'type' => 'merchant_request',
-            'created_at' => $request->created_at,
-            'internal_id' => $request->id, // Tambahkan ID internal untuk digunakan di frontend
-        ]);
-    }
-
-    // Urutkan semua transaksi berdasarkan created_at terbaru, lalu ambil 10 teratas
-    $allTransactions = $allTransactions->sortByDesc('created_at')->take(10)->values();
-
-    return new ApiResponseResource([
-        'status'  => true,
-        'message' => 'User transactions berhasil didapatkan.',
-        'data'    => $allTransactions,
-    ]);
-}
 }

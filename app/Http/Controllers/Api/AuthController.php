@@ -17,31 +17,46 @@ class AuthController extends Controller
     public function AuthRegister(Request $request)
     {
         $request->validate([
-            'name' => ['required', 'string', 'max:100', 'regex:/^[a-zA-Z0-9\s.\-]+$/'],
-            'email' => 'required|email|max:255|unique:users,email',
-            'password' => 'required|string|min:6|max:255|confirmed',
-            'fcm_token' => 'nullable|string'
+            'name' => ['required', 'string', 'max:50', 'regex:/^[a-zA-Z0-9\s.\-]+$/'],
+            'email' => 'required|email|max:50|unique:users,email',
+            'password' => 'required|string|min:6|max:50|confirmed',
+            'fcm_token' => 'nullable|string',
+            'referral_code' => 'nullable|string|max:50'
         ], [
             'name.regex' => 'Nama hanya boleh mengandung huruf, angka, spasi, titik, dan strip.',
         ]);
 
+        $referredBy = null;
+        if ($request->filled('referral_code')) {
+            $referrer = User::where('referral_code', $request->referral_code)->first();
+            if ($referrer) {
+                $referredBy = $referrer->id;
+            }
+        }
+
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
-            'roles_id' => 2,
+            'roles_id' => 1,
             'password' => Hash::make($request->password),
             'saldo' => 0, // 👈 saldo awal
-            'fcm_token' => $request->fcm_token // Save FCM token if provided
+            'fcm_token' => $request->fcm_token, // Save FCM token if provided
+            'referred_by' => $referredBy
         ]);
 
-        $token = $user->createToken('auth-token')->plainTextToken;
+        // Create Access Token (short-lived)
+        $accessToken = $user->createToken('access-token', ['access'], now()->addMinutes(60))->plainTextToken;
+        
+        // Create Refresh Token (long-lived)
+        $refreshToken = $user->createToken('refresh-token', ['refresh'], now()->addDays(30))->plainTextToken;
 
         return new ApiResponseResource([
             'status' => 'success',
             'message' => 'Register Success',
             'data' => [
                 'user' => $user,
-                'token' => $token
+                'token' => $accessToken,
+                'refresh_token' => $refreshToken
             ]
         ], 201);
     }
@@ -52,8 +67,8 @@ class AuthController extends Controller
     public function AuthLogin(Request $request)
     {
         $request->validate([
-            'email' => 'required|email|max:255',
-            'password' => 'required|string|min:6|max:255',
+            'email' => 'required|email|max:50',
+            'password' => 'required|string|min:6|max:50',
             'fcm_token' => 'nullable|string'
         ]);
 
@@ -74,14 +89,48 @@ class AuthController extends Controller
             $user->updateFcmToken($request->fcm_token);
         }
 
-        $token = $user->createToken('auth-token')->plainTextToken;
+        // Create Access Token (short-lived)
+        $accessToken = $user->createToken('access-token', ['access'], now()->addMinutes(60))->plainTextToken;
+        
+        // Create Refresh Token (long-lived)
+        $refreshToken = $user->createToken('refresh-token', ['refresh'], now()->addDays(30))->plainTextToken;
 
         return new ApiResponseResource([
             'status' => 'success',
             'message' => 'Login Success',
             'data' => [
                 'user' => $user,
-                'token' => $token
+                'token' => $accessToken,
+                'refresh_token' => $refreshToken
+            ]
+        ]);
+    }
+
+    // =====================
+    // REFRESH TOKEN
+    // =====================
+    public function AuthRefresh(Request $request)
+    {
+        $user = $request->user();
+        $currentToken = $user->currentAccessToken();
+
+        // Check if the current token is indeed a refresh token
+        if (!$currentToken->can('refresh')) {
+            return new ApiResponseResource([
+                'status' => 'error',
+                'message' => 'Invalid token type for refresh',
+                'data' => null
+            ], 403);
+        }
+
+        // Generate new access token
+        $newAccessToken = $user->createToken('access-token', ['access'], now()->addMinutes(60))->plainTextToken;
+
+        return new ApiResponseResource([
+            'status' => 'success',
+            'message' => 'Token Refreshed',
+            'data' => [
+                'token' => $newAccessToken
             ]
         ]);
     }
