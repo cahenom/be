@@ -47,7 +47,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/transaksi', 'transactions');
         Route::post('/balance', 'balance');
         Route::post('/upgrade-reseller', 'upgradeToReseller');
+        Route::post('/search-phone', 'searchByPhone');
     });
+
+    Route::post('/user/transfer', [\App\Http\Controllers\Api\TransferController::class, 'transfer']);
 
     Route::middleware(['admin'])->controller(DigiflazController::class)->prefix('admin')->group(function () {
         Route::post('/get-product-prepaid', 'get_product_prepaid');

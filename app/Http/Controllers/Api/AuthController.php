@@ -19,6 +19,7 @@ class AuthController extends Controller
         $request->validate([
             'name' => ['required', 'string', 'max:50', 'regex:/^[a-zA-Z0-9\s.\-]+$/'],
             'email' => 'required|email|max:50|unique:users,email',
+            'phone' => 'required|string|max:15|unique:users,phone',
             'password' => 'required|string|min:6|max:50|confirmed',
             'fcm_token' => 'nullable|string',
             'referral_code' => 'nullable|string|max:50'
@@ -37,6 +38,7 @@ class AuthController extends Controller
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
+            'phone' => $request->phone,
             'roles_id' => 1,
             'password' => Hash::make($request->password),
             'saldo' => 0, // 👈 saldo awal
@@ -67,17 +69,21 @@ class AuthController extends Controller
     public function AuthLogin(Request $request)
     {
         $request->validate([
-            'email' => 'required|email|max:50',
+            'identifier' => 'required|string|max:50', // can be email or phone
             'password' => 'required|string|min:6|max:50',
             'fcm_token' => 'nullable|string'
         ]);
 
-        $credentials = $request->only('email', 'password');
+        $identifier = $request->input('identifier');
+        $password = $request->input('password');
 
-        if (!Auth::attempt($credentials)) {
+        // Check if identifier is email or phone
+        $fieldType = filter_var($identifier, FILTER_VALIDATE_EMAIL) ? 'email' : 'phone';
+
+        if (!Auth::attempt([$fieldType => $identifier, 'password' => $password])) {
             return new ApiResponseResource([
                 'status' => 'error',
-                'message' => 'Unauthorized',
+                'message' => 'Unauthorized: Invalid credentials',
                 'data' => null
             ], 401);
         }

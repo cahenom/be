@@ -33,6 +33,7 @@ class ProfileController extends Controller
             $validated = $request->validate([
                 'name'      => ['sometimes', 'string', 'max:100', 'regex:/^[a-zA-Z0-9\s.\-]+$/'],
                 'email'     => 'sometimes|email|max:255|unique:users,email,' . $user->id,
+                'phone'     => 'sometimes|string|max:15|unique:users,phone,' . $user->id,
             ], [
                 'name.regex' => 'Nama hanya boleh mengandung huruf, angka, spasi, titik, dan strip.',
             ]);
@@ -312,6 +313,41 @@ class ProfileController extends Controller
         return new ApiResponseResource([
             'status' => 'success',
             'message' => 'Selamat! Anda berhasil upgrade ke Reseller.',
+            'data' => $user
+        ]);
+    }
+
+    /**
+     * Search user by phone number (for transfer)
+     */
+    public function searchByPhone(Request $request)
+    {
+        $request->validate([
+            'phone' => 'required|string|exists:users,phone',
+        ]);
+
+        $phone = $request->input('phone');
+        $user = User::where('phone', $phone)->first(['id', 'name', 'phone']);
+
+        if (!$user) {
+            return new ApiResponseResource([
+                'status' => 'error',
+                'message' => 'User tidak ditemukan.',
+                'data' => null
+            ], 404);
+        }
+
+        if ($user->id === Auth::id()) {
+            return new ApiResponseResource([
+                'status' => 'error',
+                'message' => 'Tidak bisa mencari diri sendiri.',
+                'data' => null
+            ], 400);
+        }
+
+        return new ApiResponseResource([
+            'status' => 'success',
+            'message' => 'User ditemukan.',
             'data' => $user
         ]);
     }
