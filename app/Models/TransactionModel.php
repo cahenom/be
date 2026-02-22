@@ -28,10 +28,16 @@ class TransactionModel extends Model
         'transaction_product_name',
         'transaction_product_category',
         'transaction_user_id',
+        'transaction_cost',
+        'transaction_profit',
+        'points_awarded',
     ];
 
-    public function insert_transaction_data($data, $type, $provider, $user_id, $harga_jual, $product_name = null, $product_category = null)
+    public function insert_transaction_data($data, $type, $provider, $user_id, $harga_jual, $product_name = null, $product_category = null, $harga_modal = 0, $points_awarded = false)
     {
+        $cost = (float)$harga_modal;
+        $profit = max(0, (float)$harga_jual - $cost);
+
         return self::create([
             'transaction_code'             => $data['ref_id'],
             'transaction_date'             => now()->format('Y-m-d'),
@@ -40,13 +46,16 @@ class TransactionModel extends Model
             'transaction_provider'         => $provider,
             'transaction_number'           => $data['customer_no'],
             'transaction_sku'              => $data['buyer_sku_code'],
-            'transaction_total'            => $harga_jual,    // <===== HARGA JUAL, BUKAN DARI DIGIFLAZZ
+            'transaction_total'            => $harga_jual,
+            'transaction_cost'             => $cost,
+            'transaction_profit'           => $profit,
             'transaction_message'          => $data['message'],
             'transaction_status'           => $data['status'],
-            'transaction_sn'               => $data['sn'] ?? null,  // Add SN field
+            'transaction_sn'               => $data['sn'] ?? null,
             'transaction_product_name'     => $product_name,
             'transaction_product_category' => $product_category,
-            'transaction_user_id'          => $user_id
+            'transaction_user_id'          => $user_id,
+            'points_awarded'               => $points_awarded,
         ]);
     }
 

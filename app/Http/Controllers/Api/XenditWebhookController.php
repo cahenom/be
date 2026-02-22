@@ -8,8 +8,17 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
 
+use App\Services\FirebaseService;
+
 class XenditWebhookController extends Controller
 {
+    protected FirebaseService $firebaseService;
+
+    public function __construct(FirebaseService $firebaseService)
+    {
+        $this->firebaseService = $firebaseService;
+    }
+
     /**
      * Handle Xendit invoice webhook
      */
@@ -51,9 +60,9 @@ class XenditWebhookController extends Controller
             'timestamp' => now()->toISOString(),
         ]);
 
-        if ($status === 'PAID' && $externalId) {
+        if ($externalId) {
             // Find the deposit record by external_id
-            \DB::transaction(function () use ($externalId, $invoiceData) {
+            \DB::transaction(function () use ($externalId, $invoiceData, $status) {
                 // Lock the deposit record to prevent concurrent updates
                 $deposit = \App\Models\Deposit::where('external_id', $externalId)->lockForUpdate()->first();
 
@@ -65,37 +74,84 @@ class XenditWebhookController extends Controller
                     return;
                 }
 
-                // 🛡️ IDEMPOTENCY: If already paid, skip to prevent double-deposit
-                if ($deposit->status === 'paid') {
-                    Log::info("Deposit {$externalId} already processed. Skipping balance update.");
+                // If already paid, skip to prevent double-deposit (but we might still want to update other metadata if status changed)
+                if ($deposit->status === 'paid' && $status !== 'SETTLED') {
+                    Log::info("Deposit {$externalId} already paid. Skipping balance update.");
                     return;
                 }
 
-                // Update deposit status
+                // Mapping Xendit status to our internal status if needed
+                // Xendit statuses: PENDING, PAID, SETTLED, EXPIRED
+                $internalStatus = strtolower($status);
+
+                // Update deposit status and response
                 $deposit->update([
-                    'status' => 'paid',
+                    'status' => $internalStatus,
                     'xendit_response' => array_merge($deposit->xendit_response ?? [], $invoiceData)
                 ]);
 
                 $user = \App\Models\User::where('id', $deposit->user_id)->lockForUpdate()->first();
 
                 if ($user) {
-                    // Update user balance with the paid amount
-                    $amount = $invoiceData['amount'];
-                    $user->saldo += $amount;
-                    $user->save();
+                    // Update user balance ONLY if status is PAID and it wasn't already paid
+                    if ($status === 'PAID' && $deposit->getOriginal('status') !== 'paid') {
+                        $amount = $invoiceData['amount'];
+                        $user->saldo += $amount;
+                        $user->save();
 
-                    Log::info("User balance updated via Xendit for user ID {$user->id}. Amount: {$amount}", [
-                        'user_id' => $user->id,
-                        'new_balance' => $user->saldo,
-                        'external_id' => $externalId,
-                        'invoice_id' => $invoiceData['id'],
-                    ]);
+                        Log::info("User balance updated via Xendit for user ID {$user->id}. Amount: {$amount}", [
+                            'user_id' => $user->id,
+                            'new_balance' => $user->saldo,
+                            'external_id' => $externalId,
+                        ]);
+                    }
+
+                    // Send FCM Notification
+                    $this->sendFcmNotification($user, $status, $invoiceData['amount'], $externalId);
                 }
             });
         }
 
         return response()->json(['status' => 'received'], 200);
+    }
+
+    /**
+     * Send FCM notification to user about deposit status
+     */
+    private function sendFcmNotification($user, $status, $amount, $externalId)
+    {
+        try {
+            if ($user && $user->getFcmToken()) {
+                $statusLabel = $status;
+                if ($status === 'PAID') $statusLabel = 'BERHASIL';
+                if ($status === 'EXPIRED') $statusLabel = 'KADALUARSA';
+                if ($status === 'PENDING') $statusLabel = 'MENUNGGU PEMBAYARAN';
+
+                $title = 'Status Deposit';
+                $body = "Deposit sebesar Rp " . number_format($amount, 0, ',', '.') . " statusnya: {$statusLabel}";
+
+                if ($status === 'PAID') {
+                    $title = 'Deposit Berhasil!';
+                    $body = "Saldo sebesar Rp " . number_format($amount, 0, ',', '.') . " telah ditambahkan ke akun Anda.";
+                }
+
+                $this->firebaseService->sendNotificationToUser(
+                    $user,
+                    $title,
+                    $body,
+                    [
+                        'type' => 'deposit_update',
+                        'external_id' => $externalId,
+                        'status' => $status,
+                        'amount' => $amount,
+                    ]
+                );
+
+                Log::info("FCM Deposit notification sent to user {$user->id}", ['status' => $status]);
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to send FCM deposit notification: " . $e->getMessage());
+        }
     }
 
     /**

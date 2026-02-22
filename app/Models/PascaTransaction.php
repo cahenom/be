@@ -31,6 +31,7 @@ class PascaTransaction extends Model
         'message_inquiry',
         'message_payment',
         'sn',
+        'points_awarded',
     ];
 
     protected $casts = [

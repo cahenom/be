@@ -118,6 +118,19 @@ class TransferController extends Controller
                         'transaction_code' => $transactionCodeReceiver
                     ]
                 );
+
+                // Send FCM notification to sender
+                $firebaseService->sendNotificationToUser(
+                    $sender,
+                    'Transfer Berhasil!',
+                    "Anda berhasil mengirim Rp " . number_format($amount, 0, ',', '.') . " ke " . $receiver->name,
+                    [
+                        'type' => 'transfer_out',
+                        'amount' => $amount,
+                        'receiver_name' => $receiver->name,
+                        'transaction_code' => $transactionCodeSender
+                    ]
+                );
             } catch (\Exception $e) {
                 Log::warning('FCM notification failed for transfer: ' . $e->getMessage());
             }

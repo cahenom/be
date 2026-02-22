@@ -75,6 +75,7 @@ class ProfileController extends Controller
             'message' => 'Balance retrieved successfully.',
             'data' => [
                 'balance' => $user->saldo,
+                'points' => $user->points,
             ]
         ]);
     }
@@ -205,7 +206,13 @@ class ProfileController extends Controller
                                                      ->limit(20)
                                                      ->get();
 
-        // Gabungkan ketiga koleksi dan urutkan berdasarkan created_at terbaru
+        // Ambil 20 deposit terbaru
+        $deposits = \App\Models\Deposit::where('user_id', $user->id)
+                                       ->orderBy('created_at', 'desc')
+                                       ->limit(20)
+                                       ->get();
+
+        // Gabungkan semua koleksi dan urutkan berdasarkan created_at terbaru
         $allTransactions = collect();
 
         foreach ($regularTransactions as $transaction) {
@@ -254,8 +261,24 @@ class ProfileController extends Controller
             ]);
         }
 
-        // Urutkan semua transaksi berdasarkan created_at terbaru, lalu ambil 10 teratas
-        $allTransactions = $allTransactions->sortByDesc('created_at')->take(10)->values();
+        // Tambahkan deposit ke dalam daftar transaksi
+        foreach ($deposits as $deposit) {
+            $allTransactions->push([
+                'ref' => $deposit->external_id,
+                'tujuan' => $deposit->payment_method,
+                'sku' => 'DEPOSIT',
+                'produk' => 'Deposit Saldo',
+                'status' => $deposit->status,
+                'message' => 'Deposit via ' . $deposit->payment_method,
+                'price' => $deposit->amount,
+                'sn' => $deposit->invoice_id,
+                'type' => 'deposit',
+                'created_at' => $deposit->created_at,
+            ]);
+        }
+
+        // Urutkan semua transaksi berdasarkan created_at terbaru, lalu ambil 20 teratas
+        $allTransactions = $allTransactions->sortByDesc('created_at')->take(20)->values();
 
         return new ApiResponseResource([
             'status'  => true,

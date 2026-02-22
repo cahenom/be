@@ -126,6 +126,13 @@ class DigiflazController extends Controller
         $roleId
     );
 
+    // Apply points discount if requested
+    $pointsToDeduct = 0;
+    if ($request->boolean('use_points')) {
+        $pointsToDeduct = min($user->points, $harga_jual);
+        $harga_jual -= $pointsToDeduct;
+    }
+
     // =============== SELALU LANJUTKAN REQUEST, TAPI CEK DULU SALDO ===============
     $hasSufficientBalance = $user->saldo >= $harga_jual;
 
@@ -197,35 +204,51 @@ class DigiflazController extends Controller
     $result = $response->json();
     $data   = $result['data'] ?? null;
 
-    // Potong saldo jika sukses/pending
-    if ($data && in_array($data['status'], ['Sukses', 'Pending'])) {
-        // 🔒 CONSISTENCY CHECK: Ensure the response data matches our request
-        // Digiflazz ref_id collision can return old data for a different target/sku
-        $respCustomerNo = $data['customer_no'] ?? '';
-        $respSku = $data['buyer_sku_code'] ?? '';
+        $points_awarded = false;
+        if ($data && in_array($data['status'], ['Sukses', 'Pending'])) {
+            // 🔒 CONSISTENCY CHECK: Ensure the response data matches our request
+            // Digiflazz ref_id collision can return old data for a different target/sku
+            $respCustomerNo = $data['customer_no'] ?? '';
+            $respSku = $data['buyer_sku_code'] ?? '';
 
-        if ($respCustomerNo !== $request->customer_no || $respSku !== $request->sku) {
-            Log::error('Digiflazz Response Mismatch (RefID Collision?):', [
-                'expected' => ['no' => $request->customer_no, 'sku' => $request->sku],
-                'received' => ['no' => $respCustomerNo, 'sku' => $respSku],
-                'ref_id' => $ref_id
-            ]);
+            if ($respCustomerNo !== $request->customer_no || $respSku !== $request->sku) {
+                Log::error('Digiflazz Response Mismatch (RefID Collision?):', [
+                    'expected' => ['no' => $request->customer_no, 'sku' => $request->sku],
+                    'received' => ['no' => $respCustomerNo, 'sku' => $respSku],
+                    'ref_id' => $ref_id
+                ]);
 
-            return new ApiResponseResource([
-                'status'  => 'error',
-                'message' => 'Terjadi gangguan sistem (ID Collision). Silakan coba lagi.',
-                'data'    => null,
-                'code'    => 400
-            ]);
-        }
+                return new ApiResponseResource([
+                    'status'  => 'error',
+                    'message' => 'Terjadi gangguan sistem (ID Collision). Silakan coba lagi.',
+                    'data'    => null,
+                    'code'    => 400
+                ]);
+            }
 
-        DB::transaction(function () use ($user, $harga_jual) {
-            // Reload user with lock to prevent race conditions
-            $freshUser = \App\Models\User::where('id', $user->id)->lockForUpdate()->first();
-            $freshUser->saldo -= $harga_jual;
-            $freshUser->save();
-        });
-    } else if ($data && $data['status'] === 'Gagal') {
+            $points_awarded = DB::transaction(function () use ($user, $harga_jual, $data, $pointsToDeduct) {
+                // Reload user with lock to prevent race conditions
+                $freshUser = \App\Models\User::where('id', $user->id)->lockForUpdate()->first();
+                
+                // Deduct balance and points
+                $freshUser->saldo -= $harga_jual;
+                if ($pointsToDeduct > 0) {
+                    $freshUser->points -= $pointsToDeduct;
+                }
+                
+                // Award points if status is Sukses
+                $awarded = false;
+                if ($data && $data['status'] === 'Sukses') {
+                    $pointService = new \App\Services\PointService();
+                    $points = $pointService->calculatePoints($harga_jual); // Earn points on the amount paid
+                    $freshUser->points += $points;
+                    $awarded = true;
+                }
+                
+                $freshUser->save();
+                return $awarded;
+            });
+        } else if ($data && $data['status'] === 'Gagal') {
         // If transaction failed, make sure to refund or handle appropriately
         // In topup case, failed transactions typically don't charge the user
     }
@@ -239,7 +262,9 @@ class DigiflazController extends Controller
             $user->id,
             $harga_jual,
             $product->product_name,
-            $product->product_category
+            $product->product_category,
+            $harga_modal,
+            $points_awarded
         );
     }
 
@@ -647,6 +672,13 @@ class DigiflazController extends Controller
     // Use the amount_total from the stored pasca transaction record
     $harga_jual = $pascaTransaction->amount_total ?: 0; // Use 0 if not set
 
+    // Apply points discount if requested
+    $pointsToDeduct = 0;
+    if ($request->boolean('use_points')) {
+        $pointsToDeduct = min($user->points, $harga_jual);
+        $harga_jual -= $pointsToDeduct;
+    }
+
     // =============== SELALU LANJUTKAN REQUEST, TAPI CEK DULU SALDO ===============
     $hasSufficientBalance = $user->saldo >= $harga_jual;
 
@@ -669,7 +701,11 @@ class DigiflazController extends Controller
             'Pasca',
             $product->product_provider,
             $user->id,
-            $harga_jual
+            $harga_jual,
+            null, // product_name
+            null, // product_category
+            0,    // modal (not available for pasca yet)
+            $points_awarded
         );
 
         // Return response for insufficient balance
@@ -746,11 +782,27 @@ class DigiflazController extends Controller
                 ]);
             }
 
-            DB::transaction(function () use ($user, $harga_jual) {
+            $points_awarded = DB::transaction(function () use ($user, $harga_jual, $data, $pointsToDeduct) {
                 // Reload user with lock to prevent race conditions
                 $freshUser = \App\Models\User::where('id', $user->id)->lockForUpdate()->first();
+                
+                // Deduct balance and points
                 $freshUser->saldo -= $harga_jual;
+                if ($pointsToDeduct > 0) {
+                    $freshUser->points -= $pointsToDeduct;
+                }
+                
+                // Award points if status is Sukses
+                $awarded = false;
+                if ($data && $data['status'] === 'Sukses') {
+                    $pointService = new \App\Services\PointService();
+                    $points = $pointService->calculatePoints($harga_jual); // Earn points on the amount paid
+                    $freshUser->points += $points;
+                    $awarded = true;
+                }
+                
                 $freshUser->save();
+                return $awarded;
             });
         }
 
@@ -768,7 +820,11 @@ class DigiflazController extends Controller
                 'Pasca',
                 $product->product_provider,
                 $user->id,
-                $harga_jual
+                $harga_jual,
+                null, // product_name
+                null, // product_category
+                0,    // modal
+                $points_awarded
             );
         } else {
             // If API response is empty, update the transaction status to failed

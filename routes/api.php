@@ -89,6 +89,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // Firebase Cloud Messaging routes
     Route::post('/fcm/token', [FirebaseController::class, 'saveToken']);
 
+    // Points Redemption
+    Route::post('/points/exchange', [\App\Http\Controllers\Api\PointsController::class, 'exchange']);
+
     // Payment request operations for users (require authentication)
     Route::get('/payment-requests/pending', [PaymentRequestController::class, 'getUserPendingRequests']); // Get pending payment requests for user
     Route::get('/payment-requests/{id}', [PaymentRequestController::class, 'showPaymentRequest']); // Get specific payment request

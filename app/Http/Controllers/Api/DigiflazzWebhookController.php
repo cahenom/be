@@ -9,14 +9,17 @@ use App\Models\TransactionModel;
 use App\Services\FirebaseService;
 use Illuminate\Support\Facades\Cache;
 use App\Models\User;
+use App\Services\PointService;
 
 class DigiflazzWebhookController extends Controller
 {
     protected FirebaseService $firebaseService;
+    protected PointService $pointService;
 
-    public function __construct(FirebaseService $firebaseService)
+    public function __construct(FirebaseService $firebaseService, PointService $pointService)
     {
         $this->firebaseService = $firebaseService;
+        $this->pointService = $pointService;
     }
 
     public function handle(Request $request)
@@ -138,10 +141,13 @@ class DigiflazzWebhookController extends Controller
 
                 // If transaction failed, refund the user's balance
                 if (strtolower($data['status'] ?? '') === 'gagal') {
-                    // 💰 BIG FIX: Use the total price user actually paid ($trx->transaction_total)
-                    // instead of modal price from Digiflazz webhook ($selling).
                     $refundAmount = $trx->transaction_total ?: $selling;
                     $this->refundUserBalance($trx, $refundAmount);
+                }
+
+                // 🏅 AWARD POINTS: If transaction is Sukses and points haven't been awarded yet
+                if (strtolower($data['status'] ?? '') === 'sukses' && !$trx->points_awarded) {
+                    $this->awardPointsViaWebhook($trx);
                 }
 
                 \Log::info('Prepaid transaction updated via webhook:', [
@@ -198,6 +204,11 @@ class DigiflazzWebhookController extends Controller
                 // If payment failed, refund the user's balance
                 if (strtolower($data['status'] ?? '') === 'gagal') {
                     $this->refundUserBalanceForPostpaid($postpaidTrx);
+                }
+
+                // 🏅 AWARD POINTS: If postpaid transaction is Sukses and points haven't been awarded yet
+                if (strtolower($data['status'] ?? '') === 'sukses' && !$postpaidTrx->points_awarded) {
+                    $this->awardPointsViaWebhook($postpaidTrx, 'Pasca');
                 }
 
                 \Log::info('Postpaid payment transaction updated via webhook:', [
@@ -424,6 +435,39 @@ class DigiflazzWebhookController extends Controller
                 'error' => $e->getMessage(),
                 'postpaid_transaction_id' => $postpaidTransaction->id,
                 'user_id' => $postpaidTransaction->user_id ?? null
+            ]);
+        }
+    }
+
+    /**
+     * Award points to user when transaction is successful via webhook
+     */
+    private function awardPointsViaWebhook($trx, $type = 'Prepaid')
+    {
+        try {
+            $userId = ($type === 'Prepaid') ? $trx->transaction_user_id : $trx->user_id;
+            $amount = ($type === 'Prepaid') ? $trx->transaction_total : $trx->amount_total;
+            
+            if ($userId && $amount > 0) {
+                $user = User::find($userId);
+                if ($user) {
+                    $points = $this->pointService->calculatePoints($amount);
+                    
+                    \DB::transaction(function () use ($user, $points, $trx) {
+                        $this->pointService->awardPoints($user, $points);
+                        $trx->update(['points_awarded' => true]);
+                    });
+
+                    \Log::info("Points awarded via webhook for {$type} transaction", [
+                        'user_id' => $userId,
+                        'points' => $points,
+                        'ref_id' => ($type === 'Prepaid') ? $trx->transaction_code : $trx->ref_id
+                    ]);
+                }
+            }
+        } catch (\Exception $e) {
+            \Log::error("Error awarding points via webhook: " . $e->getMessage(), [
+                'ref_id' => ($type === 'Prepaid') ? ($trx->transaction_code ?? null) : ($trx->ref_id ?? null)
             ]);
         }
     }

@@ -18,6 +18,7 @@ class ProductResource extends JsonResource
             "sku"       => $this->product_sku,
             "multi"     => $this->product_multi,
             "price"     => $this->product_buyer_price,  // hanya harga jual
+            "points"    => max(1, min(10, floor($this->product_buyer_price / 10000))),
             "updated_at"=> $this->updated_at,
         ];
     }

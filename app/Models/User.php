@@ -46,6 +46,7 @@ class User extends Authenticatable
         'phone',
         'roles_id',
         'saldo',
+        'points',
         'password',
         'fcm_token',
         'referral_code',
